@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use runa_core::components::Time;
 use runa_core::components::{
     ui::UiRenderer, BackgroundMode, Camera, MeshRenderer, Sorting, SpriteRenderer, Transform,
     WorldAtmosphere,
@@ -48,7 +49,7 @@ pub struct App<'window> {
     pub renderer: Option<Renderer<'window>>,
 
     pub queue: RenderQueue,
-    pub ecs_world: runa_ecs::World,
+    pub world: runa_ecs::World,
     pub scheduler: runa_ecs::Scheduler,
 
     // Timing
@@ -79,7 +80,7 @@ impl<'window> App<'window> {
         if let Some(renderer) = &self.renderer {
             let w = renderer.surface_config.width;
             let h = renderer.surface_config.height;
-            for (_, cam) in self.ecs_world.query_mut::<runa_ecs::W<Camera>>() {
+            for (_, cam) in self.world.query_mut::<runa_ecs::W<Camera>>() {
                 cam.resize(w, h);
             }
         }
@@ -87,7 +88,7 @@ impl<'window> App<'window> {
 
     fn render_ecs_sprites(&mut self, alpha: f32) {
         let Self {
-            ref ecs_world,
+            world: ref ecs_world,
             ref mut queue,
             ..
         } = self;
@@ -120,16 +121,16 @@ impl<'window> App<'window> {
         );
         let camera_ref = Some(camera);
 
-        for (_, ui) in self.ecs_world.query_mut::<W<UiRenderer>>() {
+        for (_, ui) in self.world.query_mut::<W<UiRenderer>>() {
             ui.layout(viewport, camera_ref);
             ui.process_interaction(camera_ref);
         }
         let mut ui_with_transform: Vec<u64> = Vec::new();
-        for (entity, (ui, transform)) in self.ecs_world.query::<(R<UiRenderer>, R<Transform>)>() {
+        for (entity, (ui, transform)) in self.world.query::<(R<UiRenderer>, R<Transform>)>() {
             ui.build_render_commands(&mut self.queue, camera_ref, Some(transform));
             ui_with_transform.push(entity);
         }
-        for (entity, ui) in self.ecs_world.query::<R<UiRenderer>>() {
+        for (entity, ui) in self.world.query::<R<UiRenderer>>() {
             if ui_with_transform.contains(&entity) {
                 continue;
             }
@@ -139,7 +140,7 @@ impl<'window> App<'window> {
 
     fn render_ecs_meshes(&mut self, alpha: f32) {
         let Self {
-            ref ecs_world,
+            world: ref ecs_world,
             ref mut queue,
             ..
         } = self;
@@ -188,7 +189,7 @@ impl<'window> App<'window> {
         let render_start = Instant::now();
 
         let camera = self
-            .ecs_world
+            .world
             .query::<(R<Camera>, R<Transform>)>()
             .next()
             .map(|(_, (c, t))| {
@@ -197,18 +198,14 @@ impl<'window> App<'window> {
                 resolved.rotation = t.interpolated_rotation(self.interpolation_alpha);
                 c.resolved_with_transform(Some(&resolved))
             })
-            .or_else(|| self.ecs_world.query::<R<Camera>>().next().map(|(_, c)| *c))
+            .or_else(|| self.world.query::<R<Camera>>().next().map(|(_, c)| *c))
             .unwrap_or_default();
 
         // Phase 1: populate queue from ECS (no renderer borrow)
         self.queue.clear();
 
         // Apply WorldAtmosphere if present (must be after clear which resets atmosphere)
-        if let Some((_, atmosphere)) = self
-            .ecs_world
-            .query::<runa_ecs::R<WorldAtmosphere>>()
-            .next()
-        {
+        if let Some((_, atmosphere)) = self.world.query::<runa_ecs::R<WorldAtmosphere>>().next() {
             use runa_render_api::BackgroundModeData;
             let bg = match atmosphere.background {
                 BackgroundMode::SolidColor { color } => BackgroundModeData::SolidColor {
@@ -336,6 +333,13 @@ impl<'window> ApplicationHandler for App<'window> {
     }
 
     fn new_events(&mut self, _event_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
+        let time_scale = self
+            .world
+            .query::<R<Time>>()
+            .next()
+            .map(|(_, time)| time.time_scale)
+            .or_else(|| Some(60.));
+
         self.frame_start = Instant::now();
 
         let current_time = self.frame_start;
@@ -345,7 +349,7 @@ impl<'window> ApplicationHandler for App<'window> {
         self.last_time = current_time;
 
         let base_timestep = 1.0 / 60.0;
-        let scaled_timestep = base_timestep / self.console.time_scale.max(0.01);
+        let scaled_timestep = base_timestep / time_scale.unwrap().max(0.01);
 
         self.accumulator += frame_time;
 
@@ -355,23 +359,23 @@ impl<'window> ApplicationHandler for App<'window> {
             {
                 let mut input_state = InputState::current_mut();
                 input_state.camera = self
-                    .ecs_world
+                    .world
                     .query::<(runa_ecs::R<Camera>, runa_ecs::R<Transform>)>()
                     .next()
                     .map(|(_, (c, t))| c.resolved_with_transform(Some(t)))
                     .or_else(|| {
-                        self.ecs_world
+                        self.world
                             .query::<runa_ecs::R<Camera>>()
                             .next()
                             .map(|(_, c)| *c)
                     });
             }
 
-            for (_, transform) in self.ecs_world.query_mut::<runa_ecs::W<Transform>>() {
+            for (_, transform) in self.world.query_mut::<runa_ecs::W<Transform>>() {
                 transform.prepare_for_update();
             }
 
-            self.scheduler.run(&mut self.ecs_world);
+            self.scheduler.run(&mut self.world);
 
             InputState::update_frame();
 
@@ -401,7 +405,7 @@ impl<'window> ApplicationHandler for App<'window> {
                 let had_window = self.window.is_some();
                 if let Some(wgpu_ctx) = self.renderer.as_mut() {
                     wgpu_ctx.resize((new_size.width, new_size.height));
-                    for (_, cam) in self.ecs_world.query_mut::<runa_ecs::W<Camera>>() {
+                    for (_, cam) in self.world.query_mut::<runa_ecs::W<Camera>>() {
                         cam.resize(new_size.width, new_size.height);
                     }
                     self.config.width = new_size.width;
