@@ -29,7 +29,7 @@ impl RunaApp {
             window: None,
             renderer: None,
             queue: runa_render_api::RenderQueue::new(),
-            ecs_world,
+            world: ecs_world,
             scheduler,
             last_time: Instant::now(),
             accumulator: 0.0,
