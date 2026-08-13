@@ -13,7 +13,7 @@ pub struct RunaApp {}
 
 impl RunaApp {
     fn run_with_world(
-        ecs_world: runa_ecs::World,
+        world: runa_ecs::World,
         config: RunaWindowConfig,
     ) -> Result<(), EventLoopError> {
         let event_loop = EventLoop::new()?;
@@ -29,7 +29,7 @@ impl RunaApp {
             window: None,
             renderer: None,
             queue: runa_render_api::RenderQueue::new(),
-            world: ecs_world,
+            world,
             scheduler,
             last_time: Instant::now(),
             accumulator: 0.0,
@@ -50,13 +50,13 @@ impl RunaApp {
     }
 
     pub fn run_with_config(
-        ecs_world: runa_ecs::World,
+        world: runa_ecs::World,
         config: RunaWindowConfig,
     ) -> Result<(), EventLoopError> {
-        Self::run_with_world(ecs_world, config)
+        Self::run_with_world(world, config)
     }
 
-    pub fn run_default(ecs_world: runa_ecs::World) -> Result<(), EventLoopError> {
-        Self::run_with_config(ecs_world, RunaWindowConfig::default())
+    pub fn run_default(world: runa_ecs::World) -> Result<(), EventLoopError> {
+        Self::run_with_config(world, RunaWindowConfig::default())
     }
 }
