@@ -1,5 +1,5 @@
 use runa_engine::runa_core::{
-    components::{Camera, Transform},
+    components::{Camera, Time, Transform},
     glam::{Quat, Vec3},
     input::{lock_cursor, show_cursor, InputState},
     runa_ecs::{World, W},
@@ -29,7 +29,7 @@ impl CameraController {
 fn camera_controller_system(world: &mut World) {
     show_cursor(false);
     lock_cursor(true);
-    let dt = 1.0 / 60.0;
+    let dt = world.get_resource::<Time>().unwrap().delta;
     let mouse = InputState::mouse_delta();
     let (dx, dy) = (mouse.0, mouse.1);
 

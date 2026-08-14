@@ -1,5 +1,5 @@
 use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::{Camera, SpriteRenderer, Transform};
+use runa_engine::runa_core::components::{Camera, SpriteRenderer, Time, Transform};
 use runa_engine::runa_core::glam::Vec3;
 use runa_engine::runa_core::input::InputState;
 use runa_engine::runa_core::KeyCode;
@@ -9,7 +9,7 @@ use runa_engine::{runa_asset, runa_ecs};
 #[system]
 fn player_movement(world: &mut runa_ecs::World) {
     let speed = 8.0;
-    let dt = 1.0 / 60.0;
+    let dt = world.get_resource::<Time>().unwrap().delta;
 
     for (_, transform) in world.query_mut::<runa_ecs::W<Transform>>() {
         let mut dir = Vec3::ZERO;

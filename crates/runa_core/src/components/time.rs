@@ -15,7 +15,7 @@ impl Default for Time {
             unscaled_delta: Default::default(),
             elapsed: Default::default(),
             unscaled_elapsed: Default::default(),
-            tick: 60,
+            tick: 0,
         }
     }
 }
