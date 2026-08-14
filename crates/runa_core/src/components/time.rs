@@ -10,7 +10,7 @@ pub struct Time {
 impl Default for Time {
     fn default() -> Self {
         Self {
-            time_scale: 1. / 60.,
+            time_scale: 1.,
             delta: Default::default(),
             unscaled_delta: Default::default(),
             elapsed: Default::default(),
