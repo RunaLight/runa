@@ -91,16 +91,15 @@ impl<'window> App<'window> {
 
     fn render_ecs_sprites(&mut self, alpha: f32) {
         let Self {
-            world: ref ecs_world,
+            ref world,
             ref mut queue,
             ..
         } = self;
-        let sort_orders: HashMap<u64, i32> = ecs_world
+        let sort_orders: HashMap<u64, i32> = world
             .query::<R<Sorting>>()
             .map(|(e, s)| (e, s.order))
             .collect();
-        for (entity, (transform, sprite)) in ecs_world.query::<(R<Transform>, R<SpriteRenderer>)>()
-        {
+        for (entity, (transform, sprite)) in world.query::<(R<Transform>, R<SpriteRenderer>)>() {
             if let Some(tex) = sprite.texture() {
                 let order = sort_orders.get(&entity).copied().unwrap_or(0);
                 queue.draw_sprite(
@@ -143,16 +142,15 @@ impl<'window> App<'window> {
 
     fn render_ecs_meshes(&mut self, alpha: f32) {
         let Self {
-            world: ref ecs_world,
+            ref world,
             ref mut queue,
             ..
         } = self;
-        let sort_orders: HashMap<u64, i32> = ecs_world
+        let sort_orders: HashMap<u64, i32> = world
             .query::<R<Sorting>>()
             .map(|(e, s)| (e, s.order))
             .collect();
-        for (entity, (transform, renderer)) in ecs_world.query::<(R<Transform>, R<MeshRenderer>)>()
-        {
+        for (entity, (transform, renderer)) in world.query::<(R<Transform>, R<MeshRenderer>)>() {
             let Some(handle) = &renderer.mesh else {
                 continue;
             };
