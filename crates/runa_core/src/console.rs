@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use crate::components::Camera;
+use crate::components::Time;
 use runa_asset::Handle;
 use runa_asset::TextureAsset;
+use runa_ecs::World;
 use runa_render_api::RenderCommands;
 use runa_render_api::RenderQueue;
 use runa_render_api::TextOutline;
@@ -369,7 +371,7 @@ impl Console {
 
     /// Try to execute the current input buffer as a command.
     /// Returns true if the command was found and executed, false if not found.
-    pub fn try_execute(&mut self, command: &str) -> bool {
+    pub fn try_execute(&mut self, command: &str, world: &mut World) -> bool {
         let trimmed = command.trim();
         if trimmed.is_empty() {
             return true;
@@ -571,8 +573,9 @@ impl Console {
                 if args.is_empty() {
                     self.add_message(format!("Current timescale: {:.2}", self.time_scale));
                 } else if let Ok(value) = args[0].parse::<f32>() {
-                    self.time_scale = value.clamp(0.01, 100.0);
-                    self.add_message(format!("Timescale set to {:.2}", self.time_scale));
+                    let time_scale = value.clamp(0.01, 100.0);
+                    world.get_resource_mut::<Time>().unwrap().time_scale = time_scale;
+                    self.add_message(format!("Timescale set to {:.2}", time_scale));
                 } else {
                     self.add_message(format!(
                         "Invalid value: '{}'. Use a number (0.01-100.0).",
@@ -650,12 +653,12 @@ impl Console {
     }
 
     /// Execute command and add error message if not found
-    pub fn execute_command(&mut self, command: &str) {
+    pub fn execute_command(&mut self, command: &str, world: &mut World) {
         let trimmed = command.trim();
         if trimmed.is_empty() {
             return;
         }
-        if !self.try_execute(trimmed) {
+        if !self.try_execute(trimmed, world) {
             self.add_message(format!(
                 "Unknown command: '{}'. Type 'help' for commands.",
                 trimmed
@@ -664,7 +667,7 @@ impl Console {
     }
 
     /// Submit the current input buffer as a command
-    pub fn submit_input(&mut self) {
+    pub fn submit_input(&mut self, world: &mut World) {
         if self.input_buffer.is_empty() {
             return;
         }
@@ -676,7 +679,7 @@ impl Console {
         self.history_index = None;
         self.suggestion_index = None;
         self.add_message(format!("> {}", cmd));
-        self.execute_command(&cmd);
+        self.execute_command(&cmd, world);
         self.input_buffer.clear();
     }
 
@@ -773,7 +776,7 @@ impl Console {
     }
 
     /// Process a keyboard event (runtime path, uses winit)
-    pub fn handle_keyboard(&mut self, event: &KeyEvent, state: ElementState) {
+    pub fn handle_keyboard(&mut self, event: &KeyEvent, state: ElementState, world: &mut World) {
         if state == ElementState::Pressed
             && event.physical_key == winit::keyboard::PhysicalKey::Code(KeyCode::Backquote)
         {
@@ -796,7 +799,7 @@ impl Console {
 
         match event.physical_key {
             winit::keyboard::PhysicalKey::Code(KeyCode::Enter) => {
-                self.submit_input();
+                self.submit_input(world);
                 return;
             }
             winit::keyboard::PhysicalKey::Code(KeyCode::Backspace) => {

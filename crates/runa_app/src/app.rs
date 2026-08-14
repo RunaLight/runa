@@ -246,6 +246,7 @@ impl<'window> App<'window> {
             self.console.current_render_time_ms = self.current_render_time_ms;
             self.console.current_update_time_ms = self.current_update_time_ms;
             self.console.draw_call_count = self.queue.commands.len();
+            self.console.time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
             self.console.render(&mut self.queue, &camera);
 
             let camera_matrix = camera.matrix();
@@ -455,7 +456,8 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.toggle_fullscreen();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                self.console.handle_keyboard(&event, event.state);
+                self.console
+                    .handle_keyboard(&event, event.state, &mut self.world);
 
                 if !self.console.is_visible() {
                     if let PhysicalKey::Code(key_code) = event.physical_key {
