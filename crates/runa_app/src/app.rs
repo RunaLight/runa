@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use runa_core::components::Time;
 use runa_core::components::{
     ui::UiRenderer, BackgroundMode, Camera, MeshRenderer, Sorting, SpriteRenderer, Transform,
     WorldAtmosphere,
@@ -17,6 +18,9 @@ use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, MouseScrollDel
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
+
+/// Fixed simulation timestep in seconds. Never changes.
+const BASE_TIMESTEP: f32 = 1.0 / 60.0;
 
 #[derive(Debug, Clone)]
 pub struct RunaWindowConfig {
@@ -240,6 +244,7 @@ impl<'window> App<'window> {
             self.console.current_render_time_ms = self.current_render_time_ms;
             self.console.current_update_time_ms = self.current_update_time_ms;
             self.console.draw_call_count = self.queue.commands.len();
+            self.console.time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
             self.console.render(&mut self.queue, &camera);
 
             let camera_matrix = camera.matrix();
@@ -332,20 +337,16 @@ impl<'window> ApplicationHandler for App<'window> {
     fn new_events(&mut self, _event_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
         self.frame_start = Instant::now();
 
-        let current_time = self.frame_start;
-        let frame_time = (current_time - self.last_time).as_secs_f32().min(0.1);
+        let frame_time = (self.frame_start - self.last_time).as_secs_f32().min(0.1);
         self.last_frame_time = frame_time;
         self.current_frame_time_ms = frame_time * 1000.0;
-        self.last_time = current_time;
-
-        let base_timestep = 1.0 / 60.0;
-        let scaled_timestep = base_timestep / self.console.time_scale.max(0.01);
+        self.last_time = self.frame_start;
 
         self.accumulator += frame_time;
 
         let update_start = Instant::now();
 
-        while self.accumulator >= scaled_timestep {
+        while self.accumulator >= BASE_TIMESTEP {
             {
                 let mut input_state = InputState::current_mut();
                 input_state.camera = self
@@ -365,14 +366,23 @@ impl<'window> ApplicationHandler for App<'window> {
                 transform.prepare_for_update();
             }
 
+            {
+                let time = self.world.get_resource_mut::<Time>().unwrap();
+                time.tick += 1;
+                time.unscaled_delta = BASE_TIMESTEP;
+                time.delta = BASE_TIMESTEP * time.time_scale;
+                time.unscaled_elapsed += time.unscaled_delta;
+                time.elapsed += time.delta;
+            }
+
             self.scheduler.run(&mut self.world);
 
             InputState::update_frame();
 
-            self.accumulator -= scaled_timestep;
+            self.accumulator -= BASE_TIMESTEP;
         }
 
-        self.interpolation_alpha = self.accumulator / scaled_timestep;
+        self.interpolation_alpha = self.accumulator / BASE_TIMESTEP;
 
         self.current_update_time_ms = update_start.elapsed().as_secs_f32() * 1000.0;
 
@@ -444,7 +454,8 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.toggle_fullscreen();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                self.console.handle_keyboard(&event, event.state);
+                self.console
+                    .handle_keyboard(&event, event.state, &mut self.world);
 
                 if !self.console.is_visible() {
                     if let PhysicalKey::Code(key_code) = event.physical_key {

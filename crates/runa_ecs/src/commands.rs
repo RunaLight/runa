@@ -1,8 +1,10 @@
 use crate::{Bundle, Entity, World};
 use std::cell::RefCell;
 
+type CommandFn = Box<dyn FnOnce(&mut World)>;
+
 thread_local! {
-    static QUEUE: RefCell<Vec<Box<dyn FnOnce(&mut World)>>> = RefCell::new(Vec::new());
+    static QUEUE: RefCell<Vec<CommandFn>> = RefCell::new(Vec::new());
 }
 
 pub struct CommandQueue;

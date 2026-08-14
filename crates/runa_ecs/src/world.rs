@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::any::{self, Any, TypeId};
 use std::collections::HashMap;
 
 use crate::archetype::{Archetype, ArchetypeId, BlobColumn, Bundle};
@@ -13,6 +13,7 @@ pub(crate) struct Location {
 
 pub struct World {
     pub archetypes: Vec<Archetype>,
+    resources: HashMap<TypeId, Box<dyn Any>>,
     archetype_by_key: HashMap<Vec<TypeId>, ArchetypeId>,
     next_archetype_id: u32,
     entity_location: HashMap<Entity, Location>,
@@ -23,6 +24,7 @@ impl World {
     pub fn new() -> Self {
         Self {
             archetypes: Vec::new(),
+            resources: HashMap::new(),
             archetype_by_key: HashMap::new(),
             next_archetype_id: 0,
             entity_location: HashMap::new(),
@@ -94,6 +96,7 @@ impl World {
 
     pub fn clear(&mut self) {
         self.archetypes.clear();
+        self.resources.clear();
         self.archetype_by_key.clear();
         self.next_archetype_id = 0;
         self.entity_location.clear();
@@ -123,6 +126,48 @@ impl World {
         self.archetypes.push(arch);
         self.archetype_by_key.insert(key.to_vec(), id);
         id
+    }
+
+    /// Adds a resource of type `T` to the world.
+    ///
+    /// # Panics
+    /// Panics if a resource of type `T` is already present in the world.
+    pub fn add_resource<T: 'static>(&mut self, resource: T) {
+        let key = TypeId::of::<T>();
+
+        if self.resources.contains_key(&key) {
+            panic!("Resource {} already added.", any::type_name::<T>());
+        }
+
+        self.resources.insert(key, Box::new(resource));
+    }
+
+    pub fn delete_resource<T: 'static>(&mut self) -> Option<T> {
+        let key = TypeId::of::<T>();
+        self.resources
+            .remove(&key)
+            .and_then(|b| b.downcast::<T>().ok())
+            .map(|b| *b)
+    }
+
+    pub fn get_resource<T: 'static>(&self) -> Option<&T> {
+        let key = TypeId::of::<T>();
+        self.resources.get(&key).and_then(|b| b.downcast_ref::<T>())
+    }
+
+    pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        let key = TypeId::of::<T>();
+        self.resources
+            .get_mut(&key)
+            .and_then(|b| b.downcast_mut::<T>())
+    }
+
+    /// Inserts the default value of `T` into the resource store
+    /// if a resource of type `T` is not already present.
+    pub fn init_resource<T: Default + 'static>(&mut self) {
+        self.resources
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(T::default()));
     }
 }
 

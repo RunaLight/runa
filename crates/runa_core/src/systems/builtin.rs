@@ -1,6 +1,6 @@
 use crate::audio::AudioEngine;
 use crate::components::{
-    AudioListener, AudioSource, CursorInteractable, SpriteAnimator, SpriteRenderer, Transform,
+    AudioListener, AudioSource, CursorInteractable, SpriteAnimator, SpriteRenderer, Time, Transform,
 };
 use crate::input::InputState;
 use crate::systems::event_system::EventBus;
@@ -88,7 +88,7 @@ pub fn eventbus_system(_world: &mut runa_ecs::World) {
 
 #[system("crate")]
 pub fn sprite_animator_system(world: &mut runa_ecs::World) {
-    let dt = 1.0 / 60.0;
+    let dt = world.get_resource::<Time>().unwrap().delta;
     for (_, (animator, sprite)) in world.query_mut::<(W<SpriteAnimator>, W<SpriteRenderer>)>() {
         let uv = animator.tick(dt);
         sprite.uv_rect = uv;

@@ -1,5 +1,5 @@
 use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::{Mesh, MeshRenderer, Transform};
+use runa_engine::runa_core::components::{Mesh, MeshRenderer, Time, Transform};
 use runa_engine::runa_core::glam::{Quat, Vec3};
 use runa_engine::runa_core::runa_ecs::{World, R, W};
 use runa_engine::system;
@@ -10,7 +10,7 @@ mod camera_ctrl;
 
 #[system]
 fn rotate_cubes(world: &mut World) {
-    let dt = 1.0 / 60.0;
+    let dt = world.get_resource::<Time>().unwrap().delta;
     for (_, (transform, _mesh)) in world.query_mut::<(W<Transform>, R<MeshRenderer>)>() {
         transform.rotation *= Quat::from_rotation_y(0.5 * dt);
     }
