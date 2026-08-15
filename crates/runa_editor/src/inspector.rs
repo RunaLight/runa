@@ -1035,7 +1035,7 @@ fn components_section(
             None,
             None,
             editor_settings,
-             |ui| {
+            |ui| {
                 editable_asset_path(ui, "UI Asset", &mut ui_renderer.ui_asset_path);
                 property_row(ui, "Actions", |ui| {
                     if ui.button("Choose UI...").clicked() {
@@ -1489,7 +1489,8 @@ fn serialized_field_row(ui: &mut Ui, object: &mut Object, type_id: TypeId, field
             });
             if changed {
                 let _ = object.with_component_mut_by_type_id(type_id, |component| {
-                    component.set_serialized_field(&field.name, SerializedFieldValue::ObjectRef(value))
+                    component
+                        .set_serialized_field(&field.name, SerializedFieldValue::ObjectRef(value))
                 });
             }
         }
@@ -1901,23 +1902,21 @@ fn humanize_field_name(name: &str) -> String {
 
 pub(crate) fn component_docs_url(type_id: TypeId) -> Option<&'static str> {
     if type_id == TypeId::of::<Transform>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/transform.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/transform.md")
     } else if type_id == TypeId::of::<SpriteRenderer>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/sprite-renderer.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/sprite-renderer.md")
     } else if type_id == TypeId::of::<SpriteAnimator>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/sprite-animator.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/sprite-animator.md")
     } else if type_id == TypeId::of::<Sorting>() {
-        Some(
-            "https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/sorting.md",
-        )
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/sorting.md")
     } else if type_id == TypeId::of::<CursorInteractable>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/cursor-interactable.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/cursor-interactable.md")
     } else if type_id == TypeId::of::<Collider2D>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/physics-collision.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/physics-collision.md")
     } else if type_id == TypeId::of::<PhysicsCollision>() {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/components/physics-collision.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/components/physics-collision.md")
     } else {
-        Some("https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/README.md")
+        Some("https://github.com/RunaLight/runa/blob/main/docs/tutorials/README.md")
     }
 }
 

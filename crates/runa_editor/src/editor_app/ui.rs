@@ -221,10 +221,7 @@ impl<'window> EditorApp<'window> {
             let overlay_width =
                 (screen_rect.width() - side_margin * 2.0 - right_reserved).max(240.0);
             let overlay_top = screen_rect.bottom() - bottom_gap - self.bottom_bar_height;
-            let overlay_pos = egui::pos2(
-                screen_rect.left() + side_margin,
-                overlay_top,
-            );
+            let overlay_pos = egui::pos2(screen_rect.left() + side_margin, overlay_top);
             egui::Area::new("bottom_bar_overlay".into())
                 .order(egui::Order::Middle)
                 .fixed_pos(overlay_pos)
@@ -363,7 +360,10 @@ impl<'window> EditorApp<'window> {
                                                 let sel = self.console.selected_suggestion();
                                                 let max = ui.max_rect();
                                                 let suggest_rect = egui::Rect::from_min_max(
-                                                    egui::pos2(max.left(), max.bottom() - suggestion_h - 2.0),
+                                                    egui::pos2(
+                                                        max.left(),
+                                                        max.bottom() - suggestion_h - 2.0,
+                                                    ),
                                                     egui::pos2(max.right(), max.bottom()),
                                                 );
                                                 let painter = ui.painter_at(suggest_rect);
@@ -375,12 +375,17 @@ impl<'window> EditorApp<'window> {
                                                 painter.rect_stroke(
                                                     suggest_rect,
                                                     2.0,
-                                                    egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 100, 180)),
+                                                    egui::Stroke::new(
+                                                        1.0,
+                                                        egui::Color32::from_rgb(60, 100, 180),
+                                                    ),
                                                     egui::StrokeKind::Inside,
                                                 );
                                                 let mut x = suggest_rect.left() + 4.0;
                                                 let text_y = suggest_rect.top() + 2.0;
-                                                for (i, s) in suggestions.iter().enumerate().take(20) {
+                                                for (i, s) in
+                                                    suggestions.iter().enumerate().take(20)
+                                                {
                                                     let text = if sel == Some(i) {
                                                         format!("[{}]", s)
                                                     } else {
@@ -392,9 +397,14 @@ impl<'window> EditorApp<'window> {
                                                         egui::Color32::from_rgb(150, 200, 255)
                                                     };
                                                     let font_id = egui::FontId::monospace(14.0);
-                                                    let galley = painter.layout_no_wrap(text, font_id, color);
+                                                    let galley = painter
+                                                        .layout_no_wrap(text, font_id, color);
                                                     let w = galley.size().x;
-                                                    painter.galley(egui::pos2(x, text_y), galley, color);
+                                                    painter.galley(
+                                                        egui::pos2(x, text_y),
+                                                        galley,
+                                                        color,
+                                                    );
                                                     x += w + 8.0;
                                                 }
                                             }
@@ -410,26 +420,50 @@ impl<'window> EditorApp<'window> {
                                                 let input_id = ui.id().with("editor_console_input");
 
                                                 // Consume Tab/Enter BEFORE widget (prevents focus-steal)
-                                                let tab_consumed = ui.memory(|mem| mem.has_focus(input_id))
-                                                    && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
-                                                let enter_consumed = ui.memory(|mem| mem.has_focus(input_id))
-                                                    && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+                                                let tab_consumed = ui
+                                                    .memory(|mem| mem.has_focus(input_id))
+                                                    && ui.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::Tab,
+                                                        )
+                                                    });
+                                                let enter_consumed = ui
+                                                    .memory(|mem| mem.has_focus(input_id))
+                                                    && ui.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::Enter,
+                                                        )
+                                                    });
 
                                                 // Consume Left/Right for suggestion navigation (only when suggestions exist)
                                                 let left_consumed = has_suggestions
                                                     && ui.memory(|mem| mem.has_focus(input_id))
-                                                    && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowLeft));
+                                                    && ui.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::ArrowLeft,
+                                                        )
+                                                    });
                                                 let right_consumed = has_suggestions
                                                     && ui.memory(|mem| mem.has_focus(input_id))
-                                                    && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowRight));
+                                                    && ui.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::ArrowRight,
+                                                        )
+                                                    });
 
                                                 let resp = ui.add_sized(
                                                     egui::vec2(ui.available_width(), input_h),
-                                                    egui::TextEdit::singleline(&mut self.console.input_buffer)
-                                                        .hint_text("Type a command...")
-                                                        .font(egui::TextStyle::Monospace)
-                                                        .desired_width(f32::INFINITY)
-                                                        .id(input_id),
+                                                    egui::TextEdit::singleline(
+                                                        &mut self.console.input_buffer,
+                                                    )
+                                                    .hint_text("Type a command...")
+                                                    .font(egui::TextStyle::Monospace)
+                                                    .desired_width(f32::INFINITY)
+                                                    .id(input_id),
                                                 );
 
                                                 let mut needs_focus = false;
@@ -458,10 +492,20 @@ impl<'window> EditorApp<'window> {
                                                 // Handle up/down arrows after widget
                                                 if resp.has_focus() {
                                                     let egui_ctx = ui.ctx().clone();
-                                                    if egui_ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)) {
+                                                    if egui_ctx.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::ArrowUp,
+                                                        )
+                                                    }) {
                                                         self.console.navigate_history_up();
                                                     }
-                                                    if egui_ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)) {
+                                                    if egui_ctx.input_mut(|i| {
+                                                        i.consume_key(
+                                                            egui::Modifiers::NONE,
+                                                            egui::Key::ArrowDown,
+                                                        )
+                                                    }) {
                                                         self.console.navigate_history_down();
                                                     }
                                                 }
@@ -528,7 +572,9 @@ impl<'window> EditorApp<'window> {
                                     if let Some(path) = path {
                                         self.spawn_from_asset_path(&path, None);
                                     }
-                                } else if let Some(dragged_id) = self.hierarchy_dragging_object.take() {
+                                } else if let Some(dragged_id) =
+                                    self.hierarchy_dragging_object.take()
+                                {
                                     if self.world.borrow_mut().set_parent(dragged_id, None) {
                                         self.status_line =
                                             "Moved object to hierarchy root.".to_string();
@@ -1096,10 +1142,7 @@ impl<'window> EditorApp<'window> {
                 .show(ctx, |ui| {
                     ui.colored_label(style::ERROR_COLOR, &error_text);
                     ui.add_space(8.0);
-                    ui.label(
-                        RichText::new("Check the editor log for details:")
-                            .size(12.0),
-                    );
+                    ui.label(RichText::new("Check the editor log for details:").size(12.0));
                     ui.add_space(4.0);
                     if ui.button("Open Log Folder").clicked() {
                         let _ = std::process::Command::new("explorer")
@@ -1633,7 +1676,7 @@ impl<'window> EditorApp<'window> {
                 let docs_url = type_id
                     .and_then(crate::inspector::component_docs_url)
                     .unwrap_or(
-                        "https://github.com/RunaGameEngine/runa/blob/main/docs/tutorials/README.md",
+                        "https://github.com/RunaLight/runa/blob/main/docs/tutorials/README.md",
                     );
 
                 if !*is_addable {
@@ -2129,10 +2172,7 @@ impl<'window> EditorApp<'window> {
                 if let Some(error) = &dialog_error {
                     ui.colored_label(style::ERROR_COLOR, error);
                     ui.add_space(8.0);
-                    ui.label(
-                        RichText::new("Check the editor log for details:")
-                            .size(12.0),
-                    );
+                    ui.label(RichText::new("Check the editor log for details:").size(12.0));
                     ui.horizontal(|ui| {
                         if ui.button("Open Log Folder").clicked() {
                             let _ = std::process::Command::new("explorer")

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- Camera respects entity Transform (closes [#12](https://github.com/RunaGameEngine/runa/issues/12))
+- Camera respects entity Transform (closes [#12](https://github.com/RunaLight/runa/issues/12))
 - Changed RunaApp creation methods
 - Transform interpolation now used at render time
 - _(changelog)_ Preserve header on prepend and linkify issues

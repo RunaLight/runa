@@ -6,7 +6,7 @@ This tutorial shows the smallest useful Runa application using the code-first AP
 
 ```toml
 [dependencies]
-runa_engine = { git = "https://github.com/RunaGameEngine/runa.git", tag = "v0.6.0-alpha.1" }
+runa_engine = { git = "https://github.com/RunaLight/runa.git", tag = "v0.6.0-alpha.1" }
 ```
 
 ## Minimal App

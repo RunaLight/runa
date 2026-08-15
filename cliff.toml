@@ -62,7 +62,7 @@ split_commits = false
 # An array of regex based parsers to modify commit messages prior to further processing.
 commit_preprocessors = [
     # Turn issue references like "(closes #12)" into clickable links.
-    { pattern = '#([0-9]+)', replace = "[#$1](https://github.com/RunaGameEngine/runa/issues/$1)" },
+    { pattern = '#([0-9]+)', replace = "[#$1](https://github.com/RunaLight/runa/issues/$1)" },
 ]
 # Prevent commits that are breaking from being excluded by commit parsers.
 protect_breaking_commits = false

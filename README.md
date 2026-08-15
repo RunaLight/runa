@@ -10,7 +10,7 @@ The old OCS was removed in favor of `runa_ecs`. See ROADMAP.md.
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
 
-[![RunaGameEngine](TheRunaGameEngine.png)](https://github.com/RunaGameEngine/runa)
+[![RunaGameEngine](TheRunaGameEngine.png)](https://github.com/RunaLight/runa)
 
 Runa Engine is an experimental **code-first** Rust game engine. The primary way to build a game is through typed, composable Rust APIs. An optional editor exists as a prototype and is currently frozen — all effort goes into stabilising the core engine first.
 
@@ -92,18 +92,18 @@ cargo run -p sandbox
 
 ### Add Runa to a new project
 
-Current latest public tag: [`v0.7.2`](https://github.com/RunaGameEngine/runa/releases/tag/v0.7.6)
+Current latest public tag: [`v0.7.2`](https://github.com/RunaLight/runa/releases/tag/v0.7.6)
 
 ```toml
 [dependencies]
-runa_engine = { git = "https://github.com/RunaGameEngine/runa.git", tag = "v0.7.6" }
+runa_engine = { git = "https://github.com/RunaLight/runa.git", tag = "v0.7.6" }
 ```
 
 If you want to track the repository head instead of a tag:
 
 ```toml
 [dependencies]
-runa_engine = { git = "https://github.com/RunaGameEngine/runa.git", branch = "main" }
+runa_engine = { git = "https://github.com/RunaLight/runa.git", branch = "main" }
 ```
 
 ## Quick Guide
@@ -214,9 +214,9 @@ Good practice in Runa:
 
 ## Repository
 
-- GitHub: <https://github.com/RunaGameEngine/runa>
-- Releases: <https://github.com/RunaGameEngine/runa/releases>
-- Tags: <https://github.com/RunaGameEngine/runa/tags>
+- GitHub: <https://github.com/RunaLight/runa>
+- Releases: <https://github.com/RunaLight/runa/releases>
+- Tags: <https://github.com/RunaLight/runa/tags>
 
 ## License
 

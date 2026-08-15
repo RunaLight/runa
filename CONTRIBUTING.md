@@ -9,7 +9,7 @@ or a new feature — is very welcome.
 1. Fork the repo on GitHub.
 2. Clone your fork:
    ```bash
-   git clone https://github.com/RunaGameEngine/runa.git
+   git clone https://github.com/RunaLight/runa.git
    cd runa
    ```
 3. Build the project:
