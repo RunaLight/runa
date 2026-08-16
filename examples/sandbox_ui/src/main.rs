@@ -1,8 +1,8 @@
-use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::ui::{CanvasSpace, UiRenderer};
-use runa_engine::runa_core::components::{Camera, Transform};
-use runa_engine::runa_core::glam::Vec3;
-use runa_engine::runa_ecs;
+use runa_engine::app::{RunaApp, RunaWindowConfig};
+use runa_engine::core::components::ui::{CanvasSpace, UiRenderer};
+use runa_engine::core::components::{Camera, Transform};
+use runa_engine::core::glam::Vec3;
+use runa_engine::ecs;
 
 fn ui_builder(ui: &mut UiRenderer) {
     ui.clear();
@@ -66,7 +66,7 @@ fn ui_builder(ui: &mut UiRenderer) {
 }
 
 fn main() {
-    let mut world = runa_ecs::World::new();
+    let mut world = ecs::World::new();
 
     world.spawn((Camera::new_orthographic(320.0, 180.0),));
 

@@ -1,14 +1,14 @@
-use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::{AudioListener, AudioSource, Camera, Transform};
-use runa_engine::runa_core::input::InputState;
-use runa_engine::runa_core::KeyCode;
+use runa_engine::app::{RunaApp, RunaWindowConfig};
+use runa_engine::core::components::{AudioListener, AudioSource, Camera, Transform};
+use runa_engine::core::input::InputState;
+use runa_engine::core::KeyCode;
 use runa_engine::system;
-use runa_engine::{runa_asset, runa_ecs};
+use runa_engine::{asset, ecs};
 
 #[system]
-fn toggle_sound(world: &mut runa_ecs::World) {
+fn toggle_sound(world: &mut ecs::World) {
     if InputState::is_key_just_pressed(KeyCode::Space) {
-        for (_, source) in world.query_mut::<runa_ecs::W<AudioSource>>() {
+        for (_, source) in world.query_mut::<ecs::W<AudioSource>>() {
             if source.playing {
                 source.stop();
             } else {
@@ -19,12 +19,12 @@ fn toggle_sound(world: &mut runa_ecs::World) {
 }
 
 fn main() {
-    let mut world = runa_ecs::World::new();
+    let mut world = ecs::World::new();
 
     world.spawn((Camera::new_orthographic(320.0, 180.0),));
     world.spawn((AudioListener::new(), Transform::default()));
 
-    let audio_asset = runa_asset::load_audio!("assets/audio/test.ogg");
+    let audio_asset = asset::load_audio!("assets/audio/test.ogg");
     let mut source = AudioSource::with_asset(audio_asset);
     source.looped = true;
     source.play();

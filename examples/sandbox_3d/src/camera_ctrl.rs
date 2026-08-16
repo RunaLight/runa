@@ -1,8 +1,8 @@
-use runa_engine::runa_core::{
+use runa_engine::core::{
     components::{Camera, Time, Transform},
     glam::{Quat, Vec3},
     input::{lock_cursor, show_cursor, InputState},
-    runa_ecs::{World, W},
+    ecs::{World, W},
     KeyCode,
 };
 use runa_engine::system;

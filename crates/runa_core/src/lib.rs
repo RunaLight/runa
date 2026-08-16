@@ -13,6 +13,7 @@ pub use math::*;
 pub use systems::event_system::EventBus;
 
 pub use runa_ecs;
+pub use runa_ecs as ecs;
 
 pub use glam;
 pub use glam::{Mat4, Quat, Vec2, Vec3};

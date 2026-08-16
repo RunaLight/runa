@@ -1,17 +1,17 @@
-use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::{Camera, SpriteRenderer, Time, Transform};
-use runa_engine::runa_core::glam::Vec3;
-use runa_engine::runa_core::input::InputState;
-use runa_engine::runa_core::KeyCode;
+use runa_engine::app::{RunaApp, RunaWindowConfig};
+use runa_engine::core::components::{Camera, SpriteRenderer, Time, Transform};
+use runa_engine::core::glam::Vec3;
+use runa_engine::core::input::InputState;
+use runa_engine::core::KeyCode;
 use runa_engine::system;
-use runa_engine::{runa_asset, runa_ecs};
+use runa_engine::{asset, ecs};
 
 #[system]
-fn player_movement(world: &mut runa_ecs::World) {
+fn player_movement(world: &mut ecs::World) {
     let speed = 8.0;
     let dt = world.get_resource::<Time>().unwrap().delta;
 
-    for (_, transform) in world.query_mut::<runa_ecs::W<Transform>>() {
+    for (_, transform) in world.query_mut::<ecs::W<Transform>>() {
         let mut dir = Vec3::ZERO;
         if InputState::is_key_pressed(KeyCode::KeyW) {
             dir.y += 1.0;
@@ -30,9 +30,9 @@ fn player_movement(world: &mut runa_ecs::World) {
 }
 
 fn main() {
-    let mut world = runa_ecs::World::new();
+    let mut world = ecs::World::new();
 
-    let texture = runa_asset::load_image!("assets/art/Charactert.png");
+    let texture = asset::load_image!("assets/art/Charactert.png");
     world.spawn((
         Transform {
             position: Vec3::new(0.0, 0.0, 0.0),

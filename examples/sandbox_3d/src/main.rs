@@ -1,7 +1,7 @@
-use runa_engine::runa_app::{RunaApp, RunaWindowConfig};
-use runa_engine::runa_core::components::{Mesh, MeshRenderer, Time, Transform};
-use runa_engine::runa_core::glam::{Quat, Vec3};
-use runa_engine::runa_core::runa_ecs::{World, R, W};
+use runa_engine::app::{RunaApp, RunaWindowConfig};
+use runa_engine::core::components::{Mesh, MeshRenderer, Time, Transform};
+use runa_engine::core::glam::{Quat, Vec3};
+use runa_engine::ecs::{World, R, W};
 use runa_engine::system;
 
 use crate::camera_ctrl::spawn_camera;

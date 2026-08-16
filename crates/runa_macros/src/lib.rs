@@ -20,8 +20,8 @@ pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         #sig #block
 
-        #crate_path::runa_ecs::inventory::submit! {
-            #crate_path::runa_ecs::SystemDescriptor {
+        #crate_path::ecs::inventory::submit! {
+            #crate_path::ecs::SystemDescriptor {
                 name: stringify!(#name),
                 func: #name,
             }
@@ -43,7 +43,7 @@ pub fn scene(_attr: TokenStream, item: TokenStream) -> TokenStream {
             ::std::boxed::Box::new(#name::default())
         }
 
-        ::runa_engine::runa_ecs::inventory::submit! {
+        ::runa_engine::ecs::inventory::submit! {
             ::runa_engine::SceneDescriptor {
                 name: stringify!(#name),
                 factory: #factory_name,

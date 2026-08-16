@@ -1,11 +1,11 @@
 use runa_engine::{
-    runa_app::{RunaApp, RunaWindowConfig},
-    runa_asset::load_image,
-    runa_core::{
+    app::{RunaApp, RunaWindowConfig},
+    asset::load_image,
+    core::{
         components::{Camera, SpriteRenderer, Transform},
         Vec3,
     },
-    runa_ecs::{commands, World, R},
+    ecs::{commands, World, R},
 };
 
 struct Spawner;
