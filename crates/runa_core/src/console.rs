@@ -11,7 +11,6 @@ use runa_render_api::RenderQueue;
 use runa_render_api::TextOutline;
 use winit::event::ElementState;
 use winit::event::KeyEvent;
-use winit::keyboard::Key;
 use winit::keyboard::KeyCode;
 
 /// Trait for console commands that only need message output.
@@ -96,7 +95,7 @@ impl ConsoleCommand for VersionCommand {
 
 /// Developer console for in-game commands and debugging
 pub struct Console {
-    messages: VecDeque<String>,
+    messages: VecDeque<(MessageLevel, String)>,
     max_messages: usize,
     is_visible: bool,
     pub input_buffer: String,
@@ -232,8 +231,12 @@ impl Console {
     }
 
     pub fn add_message<S: Into<String>>(&mut self, message: S) {
+        self.add_message_with_level(message, MessageLevel::Info);
+    }
+
+    pub fn add_message_with_level<S: Into<String>>(&mut self, message: S, level: MessageLevel) {
         let msg = message.into();
-        self.messages.push_back(msg);
+        self.messages.push_back((level, msg));
         if self.messages.len() > self.max_messages {
             self.messages.pop_front();
         }
@@ -246,7 +249,12 @@ impl Console {
 
     /// Get current messages (for custom rendering like in editor)
     pub fn messages(&self) -> impl Iterator<Item = &str> {
-        self.messages.iter().map(|s| s.as_str())
+        self.messages.iter().map(|(_, s)| s.as_str())
+    }
+
+    /// Get current messages with their levels (for custom rendering like in editor)
+    pub fn messages_with_level(&self) -> impl Iterator<Item = (MessageLevel, &str)> {
+        self.messages.iter().map(|(level, s)| (*level, s.as_str()))
     }
 
     /// Add extra names that appear in suggestions but aren't executable commands
@@ -471,7 +479,10 @@ impl Console {
                                     }
                                 }
                             } else {
-                                self.add_message(format!("No help for '{}'.", topic));
+                                self.add_message_with_level(
+                                    format!("No help for '{}'.", topic),
+                                    MessageLevel::Warning,
+                                );
                             }
                         }
                     }
@@ -505,10 +516,13 @@ impl Console {
                         self.add_message("FPS cap: unlimited");
                     }
                 } else {
-                    self.add_message(format!(
-                        "Invalid value: '{}'. Use a number or 0 for unlimited.",
-                        args[0]
-                    ));
+                    self.add_message_with_level(
+                        format!(
+                            "Invalid value: '{}'. Use a number or 0 for unlimited.",
+                            args[0]
+                        ),
+                        MessageLevel::Error,
+                    );
                 }
                 true
             }
@@ -523,35 +537,78 @@ impl Console {
             }
             "bind" => {
                 if args.len() < 2 {
-                    self.add_message("Usage: bind <key> <action>");
+                    self.add_message_with_level(
+                        "Usage: bind <key> <action>",
+                        MessageLevel::Warning,
+                    );
                     self.add_message("Examples: bind w move_forward, bind mouseleft attack");
                 } else {
                     let key_str = args[0];
                     let action = args[1..].join("_");
-                    if let Some(binding) = crate::input::parse_input_binding(key_str) {
+                    let action_exists = crate::input::InputState::list_actions()
+                        .iter()
+                        .any(|a| a == &action);
+                    if !action_exists {
+                        self.add_message_with_level(
+                            format!(
+                                "Unknown action: '{}'. Use 'binds' to list registered actions.",
+                                action
+                            ),
+                            MessageLevel::Error,
+                        );
+                    } else if let Some(binding) = crate::input::parse_input_binding(key_str) {
                         crate::input::bind_action(&action, binding);
                         self.add_message(format!("Bound '{}' to '{}'", key_str, action));
                     } else {
-                        self.add_message(format!("Unknown key: '{}'", key_str));
+                        self.add_message_with_level(
+                            format!("Unknown key: '{}'", key_str),
+                            MessageLevel::Error,
+                        );
                     }
                 }
                 true
             }
             "unbind" => {
                 if args.is_empty() {
-                    self.add_message("Usage: unbind <action> [key]");
+                    self.add_message_with_level(
+                        "Usage: unbind <action> [key]",
+                        MessageLevel::Warning,
+                    );
                 } else if args.len() == 1 {
                     let action = args[0];
-                    crate::input::unbind_action_all(action);
-                    self.add_message(format!("Unbound all keys from '{}'", action));
+                    if crate::input::InputState::list_actions()
+                        .iter()
+                        .any(|a| a == action)
+                    {
+                        crate::input::unbind_action_all(action);
+                        self.add_message(format!("Unbound all keys from '{}'", action));
+                    } else {
+                        self.add_message_with_level(
+                            format!("Unknown action: '{}'", action),
+                            MessageLevel::Error,
+                        );
+                    }
                 } else {
                     let action = args[0];
                     let key_str = args[1];
-                    if let Some(binding) = crate::input::parse_input_binding(key_str) {
-                        crate::input::unbind_action(action, &binding);
-                        self.add_message(format!("Unbound '{}' from '{}'", key_str, action));
+                    if crate::input::InputState::list_actions()
+                        .iter()
+                        .any(|a| a == action)
+                    {
+                        if let Some(binding) = crate::input::parse_input_binding(key_str) {
+                            crate::input::unbind_action(action, &binding);
+                            self.add_message(format!("Unbound '{}' from '{}'", key_str, action));
+                        } else {
+                            self.add_message_with_level(
+                                format!("Unknown key: '{}'", key_str),
+                                MessageLevel::Error,
+                            );
+                        }
                     } else {
-                        self.add_message(format!("Unknown key: '{}'", key_str));
+                        self.add_message_with_level(
+                            format!("Unknown action: '{}'", action),
+                            MessageLevel::Error,
+                        );
                     }
                 }
                 true
@@ -577,10 +634,10 @@ impl Console {
                     world.get_resource_mut::<Time>().unwrap().time_scale = time_scale;
                     self.add_message(format!("Timescale set to {:.2}", time_scale));
                 } else {
-                    self.add_message(format!(
-                        "Invalid value: '{}'. Use a number (0.01-100.0).",
-                        args[0]
-                    ));
+                    self.add_message_with_level(
+                        format!("Invalid value: '{}'. Use a number (0.01-100.0).", args[0]),
+                        MessageLevel::Error,
+                    );
                 }
                 true
             }
@@ -638,7 +695,7 @@ impl Console {
                         out.clear();
                     }
                     cmd_obj.execute(&args, &mut |msg| {
-                        out.push_back(msg);
+                        out.push_back((MessageLevel::Info, msg));
                         if out.len() > self.max_messages {
                             out.pop_front();
                         }
@@ -659,10 +716,10 @@ impl Console {
             return;
         }
         if !self.try_execute(trimmed, world) {
-            self.add_message(format!(
-                "Unknown command: '{}'. Type 'help' for commands.",
-                trimmed
-            ));
+            self.add_message_with_level(
+                format!("Unknown command: '{}'. Type 'help' for commands.", trimmed),
+                MessageLevel::Error,
+            );
         }
     }
 
@@ -693,19 +750,16 @@ impl Console {
         self.suggestion_index = None;
     }
 
-    /// Advance the suggestion index forward and insert into buffer (called by Tab).
+    /// Insert the currently selected suggestion into the buffer (called by Tab).
     pub fn advance_suggestion(&mut self) -> Option<String> {
         let matches = self.matching_commands();
         if matches.is_empty() {
             self.suggestion_index = None;
             return None;
         }
-        let new_index = match self.suggestion_index {
-            Some(i) => (i + 1) % matches.len(),
-            None => 0,
-        };
-        self.suggestion_index = Some(new_index);
-        let selected = matches[new_index].clone();
+        let index = self.suggestion_index.unwrap_or_default();
+        self.suggestion_index = Some(index);
+        let selected = matches[index].clone();
         self.input_buffer = format!("{} ", selected);
         Some(selected)
     }
@@ -838,8 +892,8 @@ impl Console {
             _ => {}
         }
 
-        if let Key::Character(c) = &event.logical_key {
-            for ch in c.chars() {
+        if let Some(text) = &event.text {
+            for ch in text.chars() {
                 if (' '..='~').contains(&ch) {
                     self.input_buffer.push(ch);
                 }
@@ -930,11 +984,11 @@ impl Console {
 
         // Messages (newest at bottom, above input)
         let mut line_y = input_y - line_h;
-        for msg in self.messages.iter().rev().take(max_lines) {
+        for (level, msg) in self.messages.iter().rev().take(max_lines) {
             queue.commands.push(RenderCommands::Text {
                 text: msg.clone(),
                 position: glam::Vec2::new(text_x, line_y),
-                color: [1.0, 1.0, 1.0, 1.0],
+                color: level.color(),
                 size: text_size,
                 outline: None,
             });
@@ -949,7 +1003,7 @@ impl Console {
             / 500)
             & 1
             == 0;
-        let cursor = if blink { "█" } else { " " };
+        let cursor = if blink { "|" } else { " " };
 
         queue.commands.push(RenderCommands::Text {
             text: format!("> {}{}", self.input_buffer, cursor),
@@ -1010,5 +1064,67 @@ impl Console {
 impl Default for Console {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+impl MessageLevel {
+    pub fn color(self) -> [f32; 4] {
+        match self {
+            MessageLevel::Info => [1.0, 1.0, 1.0, 1.0],
+            MessageLevel::Warning => [1.0, 0.8, 0.2, 1.0],
+            MessageLevel::Error => [1.0, 0.35, 0.35, 1.0],
+        }
+    }
+}
+
+/// Log a message to the in-game console.
+///
+/// Gets the `Console` resource from the world and pushes a message to it.
+/// The message is formatted like `format!`, so `{}` placeholders are supported.
+///
+/// # Parameter variants
+///
+/// The macro accepts the arguments in two forms:
+///
+/// 1. With an explicit message level (`MessageLevel::Info` / `Warning` / `Error`):
+///    `(world, level, format_args...)`
+///
+///    ```ignore
+///    console_log!(world, MessageLevel::Warning, "low hp: {}", hp);
+///    ```
+///
+/// 2. Without a level — defaults to `MessageLevel::Info`:
+///    `(world, format_args...)`
+///
+///    ```ignore
+///    console_log!(world, "player spawned at {:?}", position);
+///    ```
+///
+/// # Parameters
+///
+/// - `world` — expression that yields `&mut World` containing the `Console` resource
+///   (registered by `init_resource::<Console>()` at app startup).
+/// - `level` — optional `MessageLevel` for coloring the message in the console overlay.
+/// - `...` — the remaining tokens are passed verbatim to `format!` (any `format!` arguments).
+///
+/// # Panics
+///
+/// Panics if the `Console` resource is missing from the world.
+#[macro_export]
+macro_rules! console_log {
+    ($world:expr, $level:expr, $($arg:tt)*) => {
+        $world.get_resource_mut::<$crate::console::Console>().unwrap()
+            .add_message_with_level(format!($($arg)*), $level)
+    };
+    ($world:expr, $($arg:tt)*) => {
+        $world.get_resource_mut::<$crate::console::Console>().unwrap()
+            .add_message_with_level(format!($($arg)*), $crate::console::MessageLevel::Info)
     }
 }

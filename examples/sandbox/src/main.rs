@@ -3,6 +3,7 @@ use runa_engine::core::components::{Camera, SpriteRenderer, Time, Transform};
 use runa_engine::core::glam::Vec3;
 use runa_engine::core::input::InputState;
 use runa_engine::core::KeyCode;
+use runa_engine::prelude::{console_log, MessageLevel};
 use runa_engine::system;
 use runa_engine::{asset, ecs};
 
@@ -26,6 +27,14 @@ fn player_movement(world: &mut ecs::World) {
             dir.x -= 1.0;
         }
         transform.position += dir.normalize_or_zero() * speed * dt;
+    }
+
+    if InputState::is_key_just_pressed(KeyCode::KeyF) {
+        let pos = world
+            .query::<ecs::R<Transform>>()
+            .next()
+            .map(|(_, t)| t.position);
+        console_log!(world, MessageLevel::Info, "Player at {:?}", pos);
     }
 }
 

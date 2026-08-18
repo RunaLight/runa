@@ -25,5 +25,6 @@ pub use crate::core::input::{
 };
 pub use crate::core::EventBus;
 pub use crate::core::KeyCode;
+pub use crate::core::{console_log, Console, MessageLevel};
 
 pub use crate::scene::{SaveData, Scene, SceneDescriptor, SceneManager};

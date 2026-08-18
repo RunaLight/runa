@@ -20,7 +20,7 @@ impl RunaApp {
         event_loop.set_control_flow(ControlFlow::Poll);
 
         runa_core::input::InputState::initialize();
-        let console = Console::new();
+        runa_core::input::register_default_actions();
 
         let mut scheduler = runa_ecs::Scheduler::new();
         scheduler.collect_registered_systems("Update");
@@ -43,7 +43,6 @@ impl RunaApp {
             current_update_time_ms: 0.0,
             interpolation_alpha: 0.0,
             frame_start: Instant::now(),
-            console,
             config,
             current_fps: 0.0,
         };
@@ -65,4 +64,5 @@ impl RunaApp {
 
 fn init_resources(world: &mut runa_ecs::World) {
     world.init_resource::<Time>();
+    world.init_resource::<Console>();
 }

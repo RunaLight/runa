@@ -361,6 +361,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_test"
+version = "0.7.6"
+dependencies = [
+ "runa_engine",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
