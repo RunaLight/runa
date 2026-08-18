@@ -67,8 +67,6 @@ pub struct App<'window> {
     pub current_update_time_ms: f32,
     pub interpolation_alpha: f32,
 
-    pub console: Console,
-
     pub config: RunaWindowConfig,
     pub frame_start: Instant,
 }
@@ -239,13 +237,16 @@ impl<'window> App<'window> {
         self.render_ecs_ui(&camera);
 
         if let (Some(renderer), Some(window)) = (&mut self.renderer, &self.window) {
-            self.console.current_fps = self.current_fps;
-            self.console.current_frame_time_ms = self.current_frame_time_ms;
-            self.console.current_render_time_ms = self.current_render_time_ms;
-            self.console.current_update_time_ms = self.current_update_time_ms;
-            self.console.draw_call_count = self.queue.commands.len();
-            self.console.time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
-            self.console.render(&mut self.queue, &camera);
+            let time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
+            let console = self.world.get_resource_mut::<Console>().unwrap();
+
+            console.current_fps = self.current_fps;
+            console.current_frame_time_ms = self.current_frame_time_ms;
+            console.current_render_time_ms = self.current_render_time_ms;
+            console.current_update_time_ms = self.current_update_time_ms;
+            console.draw_call_count = self.queue.commands.len();
+            console.time_scale = time_scale;
+            console.render(&mut self.queue, &camera);
 
             let camera_matrix = camera.matrix();
             let virtual_size = if matches!(
@@ -426,7 +427,7 @@ impl<'window> ApplicationHandler for App<'window> {
             WindowEvent::RedrawRequested => {
                 self.render();
 
-                let fps_max = self.console.fps_max;
+                let fps_max = self.world.get_resource_mut::<Console>().unwrap().fps_max;
 
                 if fps_max.is_finite() && fps_max > 0.0 {
                     let min_frame_time = Duration::from_secs_f32(1.0 / fps_max);
@@ -454,10 +455,12 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.toggle_fullscreen();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                self.console
-                    .handle_keyboard(&event, event.state, &mut self.world);
+                let mut console = self.world.delete_resource::<Console>().unwrap();
+                console.handle_keyboard(&event, event.state, &mut self.world);
+                let visible = console.is_visible();
+                self.world.add_resource(console);
 
-                if !self.console.is_visible() {
+                if !visible {
                     if let PhysicalKey::Code(key_code) = event.physical_key {
                         let mut input_state = InputState::current_mut();
                         if event.state == ElementState::Pressed {

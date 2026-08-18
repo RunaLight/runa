@@ -8,7 +8,7 @@ pub mod math;
 pub mod systems;
 
 pub use color::Color;
-pub use console::{Console, ConsoleCommand};
+pub use console::{Console, ConsoleCommand, MessageLevel};
 pub use math::*;
 pub use systems::event_system::EventBus;
 

@@ -15,6 +15,7 @@ members = [
     "examples/sandbox_soundtest",
     "examples/sandbox_3d",
     "examples/sandbox_ui",
+    "examples/console_test",
 ]
 exclude = ["templates"]
 resolver = "2"
