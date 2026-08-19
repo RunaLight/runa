@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use runa_core::{components::Time, Console};
+use runa_core::{components::Time, input::InputState, Console, EventBus};
 use winit::{
     error::EventLoopError,
     event_loop::{ControlFlow, EventLoop},
@@ -65,4 +65,6 @@ impl RunaApp {
 fn init_resources(world: &mut runa_ecs::World) {
     world.init_resource::<Time>();
     world.init_resource::<Console>();
+    world.init_resource::<EventBus>();
+    world.init_resource::<InputState>();
 }

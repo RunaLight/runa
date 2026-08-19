@@ -82,13 +82,13 @@ pub fn audio_system(world: &mut runa_ecs::World) {
 }
 
 #[system("crate")]
-pub fn eventbus_system(_world: &mut runa_ecs::World) {
-    EventBus::process();
+pub fn eventbus_system(world: &mut runa_ecs::World) {
+    world.get_resource_mut::<EventBus>().process();
 }
 
 #[system("crate")]
 pub fn sprite_animator_system(world: &mut runa_ecs::World) {
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
     for (_, (animator, sprite)) in world.query_mut::<(W<SpriteAnimator>, W<SpriteRenderer>)>() {
         let uv = animator.tick(dt);
         sprite.uv_rect = uv;
