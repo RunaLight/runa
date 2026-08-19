@@ -631,7 +631,7 @@ impl Console {
                     self.add_message(format!("Current timescale: {:.2}", self.time_scale));
                 } else if let Ok(value) = args[0].parse::<f32>() {
                     let time_scale = value.clamp(0.01, 100.0);
-                    world.get_resource_mut::<Time>().unwrap().time_scale = time_scale;
+                    world.get_resource_mut::<Time>().time_scale = time_scale;
                     self.add_message(format!("Timescale set to {:.2}", time_scale));
                 } else {
                     self.add_message_with_level(
@@ -1120,11 +1120,11 @@ impl MessageLevel {
 #[macro_export]
 macro_rules! console_log {
     ($world:expr, $level:expr, $($arg:tt)*) => {
-        $world.get_resource_mut::<$crate::console::Console>().unwrap()
+        $world.get_resource_mut::<$crate::console::Console>()
             .add_message_with_level(format!($($arg)*), $level)
     };
     ($world:expr, $($arg:tt)*) => {
-        $world.get_resource_mut::<$crate::console::Console>().unwrap()
+        $world.get_resource_mut::<$crate::console::Console>()
             .add_message_with_level(format!($($arg)*), $crate::console::MessageLevel::Info)
     }
 }

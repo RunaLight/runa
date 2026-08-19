@@ -10,7 +10,7 @@ use runa_engine::{asset, ecs};
 #[system]
 fn player_movement(world: &mut ecs::World) {
     let speed = 8.0;
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
 
     for (_, transform) in world.query_mut::<ecs::W<Transform>>() {
         let mut dir = Vec3::ZERO;

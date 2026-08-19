@@ -237,8 +237,8 @@ impl<'window> App<'window> {
         self.render_ecs_ui(&camera);
 
         if let (Some(renderer), Some(window)) = (&mut self.renderer, &self.window) {
-            let time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
-            let console = self.world.get_resource_mut::<Console>().unwrap();
+            let time_scale = self.world.get_resource::<Time>().time_scale;
+            let console = self.world.get_resource_mut::<Console>();
 
             console.current_fps = self.current_fps;
             console.current_frame_time_ms = self.current_frame_time_ms;
@@ -368,7 +368,7 @@ impl<'window> ApplicationHandler for App<'window> {
             }
 
             {
-                let time = self.world.get_resource_mut::<Time>().unwrap();
+                let time = self.world.get_resource_mut::<Time>();
                 time.tick += 1;
                 time.unscaled_delta = BASE_TIMESTEP;
                 time.delta = BASE_TIMESTEP * time.time_scale;
@@ -427,7 +427,7 @@ impl<'window> ApplicationHandler for App<'window> {
             WindowEvent::RedrawRequested => {
                 self.render();
 
-                let fps_max = self.world.get_resource_mut::<Console>().unwrap().fps_max;
+                let fps_max = self.world.get_resource_mut::<Console>().fps_max;
 
                 if fps_max.is_finite() && fps_max > 0.0 {
                     let min_frame_time = Duration::from_secs_f32(1.0 / fps_max);

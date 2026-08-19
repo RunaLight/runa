@@ -150,16 +150,20 @@ impl World {
             .map(|b| *b)
     }
 
-    pub fn get_resource<T: 'static>(&self) -> Option<&T> {
+    pub fn get_resource<T: 'static>(&self) -> &T {
         let key = TypeId::of::<T>();
-        self.resources.get(&key).and_then(|b| b.downcast_ref::<T>())
+        self.resources
+            .get(&key)
+            .and_then(|b| b.downcast_ref::<T>())
+            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
     }
 
-    pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
+    pub fn get_resource_mut<T: 'static>(&mut self) -> &mut T {
         let key = TypeId::of::<T>();
         self.resources
             .get_mut(&key)
             .and_then(|b| b.downcast_mut::<T>())
+            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
     }
 
     /// Inserts the default value of `T` into the resource store

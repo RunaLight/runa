@@ -29,7 +29,7 @@ impl CameraController {
 fn camera_controller_system(world: &mut World) {
     show_cursor(false);
     lock_cursor(true);
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
     let mouse = InputState::mouse_delta();
     let (dx, dy) = (mouse.0, mouse.1);
 
