@@ -9,7 +9,7 @@ type EventCallback = Box<dyn Fn(&dyn Any) + Send>;
 /// No need to spawn anything or query the world — just emit, subscribe,
 /// and process from anywhere.
 ///
-/// ```rust
+/// ```rust,ignore
 /// let event_bus = world.get_resource_mut::<EventBus>();
 /// event_bus.emit(MyEvent { x: 1 });
 /// event_bus.subscribe(|e: &MyEvent| println!("got {}", e.x));

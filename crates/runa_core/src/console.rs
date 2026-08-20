@@ -1109,14 +1109,14 @@ impl MessageLevel {
 /// 1. With an explicit message level (`MessageLevel::Info` / `Warning` / `Error`):
 ///    `(world, level, format_args...)`
 ///
-///    ```ignore
+///    ```rust,ignore
 ///    console_log!(world, MessageLevel::Warning, "low hp: {}", hp);
 ///    ```
 ///
 /// 2. Without a level — defaults to `MessageLevel::Info`:
 ///    `(world, format_args...)`
 ///
-///    ```ignore
+///    ```rust,ignore
 ///    console_log!(world, "player spawned at {:?}", position);
 ///    ```
 ///
