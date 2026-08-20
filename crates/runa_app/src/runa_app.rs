@@ -19,9 +19,6 @@ impl RunaApp {
         let event_loop = EventLoop::new()?;
         event_loop.set_control_flow(ControlFlow::Poll);
 
-        runa_core::input::InputState::initialize();
-        runa_core::input::register_default_actions();
-
         let mut scheduler = runa_ecs::Scheduler::new();
         scheduler.collect_registered_systems("Update");
 

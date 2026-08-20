@@ -142,12 +142,13 @@ impl World {
         self.resources.insert(key, Box::new(resource));
     }
 
-    pub fn delete_resource<T: 'static>(&mut self) -> Option<T> {
+    pub fn delete_resource<T: 'static>(&mut self) -> T {
         let key = TypeId::of::<T>();
         self.resources
             .remove(&key)
             .and_then(|b| b.downcast::<T>().ok())
             .map(|b| *b)
+            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
     }
 
     pub fn get_resource<T: 'static>(&self) -> &T {

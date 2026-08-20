@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 
 use crate::components::Camera;
 use crate::components::Time;
+use crate::input::InputState;
 use runa_asset::Handle;
 use runa_asset::TextureAsset;
 use runa_ecs::World;
@@ -545,7 +546,9 @@ impl Console {
                 } else {
                     let key_str = args[0];
                     let action = args[1..].join("_");
-                    let action_exists = crate::input::InputState::list_actions()
+                    let action_exists = world
+                        .get_resource_mut::<InputState>()
+                        .list_actions()
                         .iter()
                         .any(|a| a == &action);
                     if !action_exists {
@@ -557,7 +560,9 @@ impl Console {
                             MessageLevel::Error,
                         );
                     } else if let Some(binding) = crate::input::parse_input_binding(key_str) {
-                        crate::input::bind_action(&action, binding);
+                        world
+                            .get_resource_mut::<InputState>()
+                            .bind_action(&action, binding);
                         self.add_message(format!("Bound '{}' to '{}'", key_str, action));
                     } else {
                         self.add_message_with_level(
@@ -576,11 +581,15 @@ impl Console {
                     );
                 } else if args.len() == 1 {
                     let action = args[0];
-                    if crate::input::InputState::list_actions()
+                    if world
+                        .get_resource_mut::<InputState>()
+                        .list_actions()
                         .iter()
                         .any(|a| a == action)
                     {
-                        crate::input::unbind_action_all(action);
+                        world
+                            .get_resource_mut::<InputState>()
+                            .unbind_action_all(action);
                         self.add_message(format!("Unbound all keys from '{}'", action));
                     } else {
                         self.add_message_with_level(
@@ -591,12 +600,16 @@ impl Console {
                 } else {
                     let action = args[0];
                     let key_str = args[1];
-                    if crate::input::InputState::list_actions()
+                    if world
+                        .get_resource_mut::<InputState>()
+                        .list_actions()
                         .iter()
                         .any(|a| a == action)
                     {
                         if let Some(binding) = crate::input::parse_input_binding(key_str) {
-                            crate::input::unbind_action(action, &binding);
+                            world
+                                .get_resource_mut::<InputState>()
+                                .unbind_action(action, &binding);
                             self.add_message(format!("Unbound '{}' from '{}'", key_str, action));
                         } else {
                             self.add_message_with_level(
@@ -613,19 +626,19 @@ impl Console {
                 }
                 true
             }
-            "binds" => {
-                let bindings = crate::input::list_action_bindings();
-                if bindings.is_empty() {
-                    self.add_message("No actions registered.");
-                } else {
-                    self.add_message("Action bindings:");
-                    for (action, binds) in &bindings {
-                        let keys: Vec<String> = binds.iter().map(|b| format!("{}", b)).collect();
-                        self.add_message(format!("  {:<20} {}", action, keys.join(", ")));
-                    }
-                }
-                true
-            }
+            // "binds" => {
+            //     let bindings = world.get_resource::<InputState>().list_action_bindings();
+            //     if bindings.is_empty() {
+            //         self.add_message("No actions registered.");
+            //     } else {
+            //         self.add_message("Action bindings:");
+            //         for (action, binds) in &bindings {
+            //             let keys: Vec<String> = binds.iter().map(|b| format!("{}", b)).collect();
+            //             self.add_message(format!("  {:<20} {}", action, keys.join(", ")));
+            //         }
+            //     }
+            //     true
+            // }
             "timescale" => {
                 if args.is_empty() {
                     self.add_message(format!("Current timescale: {:.2}", self.time_scale));

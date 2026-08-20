@@ -28,11 +28,16 @@ fn audio_engine() -> &'static Mutex<Option<AudioEngine>> {
 
 #[system("crate")]
 pub fn cursor_interaction(world: &mut runa_ecs::World) {
-    let world_pos = match InputState::get_mouse_world_position() {
+    let world_pos = match world
+        .get_resource_mut::<InputState>()
+        .get_mouse_world_position()
+    {
         Some(p) => p,
         None => return,
     };
-    let mouse_down = InputState::is_mouse_button_just_pressed(MouseButton::Left);
+    let mouse_down = world
+        .get_resource_mut::<InputState>()
+        .is_mouse_button_just_pressed(MouseButton::Left);
 
     for (_, (interactable, transform)) in world.query_mut::<(W<CursorInteractable>, R<Transform>)>()
     {
