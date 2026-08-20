@@ -148,7 +148,7 @@ impl World {
             .remove(&key)
             .and_then(|b| b.downcast::<T>().ok())
             .map(|b| *b)
-            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
     pub fn get_resource<T: 'static>(&self) -> &T {
@@ -156,7 +156,7 @@ impl World {
         self.resources
             .get(&key)
             .and_then(|b| b.downcast_ref::<T>())
-            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
     pub fn get_resource_mut<T: 'static>(&mut self) -> &mut T {
@@ -164,7 +164,7 @@ impl World {
         self.resources
             .get_mut(&key)
             .and_then(|b| b.downcast_mut::<T>())
-            .expect(&format!("Resource {} not found.", any::type_name::<T>()))
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
     /// Inserts the default value of `T` into the resource store

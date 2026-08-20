@@ -30,7 +30,10 @@ fn camera_controller_system(world: &mut World) {
     show_cursor(false);
     lock_cursor(true);
     let dt = world.get_resource::<Time>().delta;
-    let mouse = InputState::mouse_delta();
+
+    let mut input = world.delete_resource::<InputState>();
+
+    let mouse = input.mouse_delta;
     let (dx, dy) = (mouse.0, mouse.1);
 
     for (_, (transform, ctrl)) in world.query_mut::<(W<Transform>, W<CameraController>)>() {
@@ -43,27 +46,29 @@ fn camera_controller_system(world: &mut World) {
         let forward = transform.rotation * -Vec3::Z;
         let right = transform.rotation * Vec3::X;
         let mut move_dir = Vec3::ZERO;
-        if InputState::is_key_pressed(KeyCode::KeyW) {
+        if input.is_key_pressed(KeyCode::KeyW) {
             move_dir += forward;
         }
-        if InputState::is_key_pressed(KeyCode::KeyS) {
+        if input.is_key_pressed(KeyCode::KeyS) {
             move_dir -= forward;
         }
-        if InputState::is_key_pressed(KeyCode::KeyD) {
+        if input.is_key_pressed(KeyCode::KeyD) {
             move_dir += right;
         }
-        if InputState::is_key_pressed(KeyCode::KeyA) {
+        if input.is_key_pressed(KeyCode::KeyA) {
             move_dir -= right;
         }
-        if InputState::is_key_pressed(KeyCode::Space) {
+        if input.is_key_pressed(KeyCode::Space) {
             move_dir += Vec3::Y;
         }
-        if InputState::is_key_pressed(KeyCode::ShiftLeft) {
+        if input.is_key_pressed(KeyCode::ShiftLeft) {
             move_dir -= Vec3::Y;
         }
 
         transform.position += move_dir.normalize_or_zero() * ctrl.speed * dt;
     }
+
+    world.add_resource(input);
 }
 
 pub fn spawn_camera(world: &mut World) -> u64 {

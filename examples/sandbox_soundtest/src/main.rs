@@ -7,7 +7,8 @@ use runa_engine::{asset, ecs};
 
 #[system]
 fn toggle_sound(world: &mut ecs::World) {
-    if InputState::is_key_just_pressed(KeyCode::Space) {
+    let mut input = world.delete_resource::<InputState>();
+    if input.is_key_just_pressed(KeyCode::Space) {
         for (_, source) in world.query_mut::<ecs::W<AudioSource>>() {
             if source.playing {
                 source.stop();
@@ -16,6 +17,7 @@ fn toggle_sound(world: &mut ecs::World) {
             }
         }
     }
+    world.add_resource(input);
 }
 
 fn main() {
