@@ -517,7 +517,9 @@ impl<'window> Renderer<'window> {
             let dst = &mut pixels[dst_offset..dst_offset + unpadded_bytes_per_row as usize];
 
             if is_bgra {
-                for (src_px, dst_px) in src.chunks_exact(4).zip(dst.chunks_exact_mut(4)) {
+                let (src_px, _) = src.as_chunks::<4>();
+                let (dst_px, _) = dst.as_chunks_mut::<4>();
+                for (src_px, dst_px) in src_px.iter().zip(dst_px.iter_mut()) {
                     dst_px[0] = src_px[2];
                     dst_px[1] = src_px[1];
                     dst_px[2] = src_px[0];
