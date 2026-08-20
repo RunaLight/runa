@@ -10,7 +10,6 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::components::Camera;
 
-static INPUT_STATE: OnceLock<Mutex<InputState>> = OnceLock::new();
 static WINDOW_HANDLE: OnceLock<Mutex<Weak<Window>>> = OnceLock::new();
 static WINDOW_STATE: OnceLock<Mutex<WindowState>> = OnceLock::new();
 
@@ -73,17 +72,16 @@ pub struct InputState {
 impl InputState {
     /// Register an action with a default set of bindings.
     /// If the action already exists, new bindings are added to existing ones.
-    pub fn register_action(name: &str, default_binds: Vec<InputBinding>) {
-        let mut state = Self::current_mut();
-        let entry = state.actions.entry(name.to_string()).or_default();
+    pub fn register_action(&mut self, name: &str, default_binds: Vec<InputBinding>) {
+        let entry = self.actions.entry(name.to_string()).or_default();
         for bind in default_binds {
             entry.insert(bind);
         }
     }
 
     /// Check if an action is currently pressed (any bound input is held).
-    pub fn is_action_pressed(name: &str) -> bool {
-        let state = Self::current();
+    pub fn is_action_pressed(&self, name: &str) -> bool {
+        let state = self;
         let Some(binds) = state.actions.get(name) else {
             return false;
         };
@@ -105,8 +103,8 @@ impl InputState {
     }
 
     /// Check if an action was just pressed this frame (any bound input).
-    pub fn is_action_just_pressed(name: &str) -> bool {
-        let state = Self::current();
+    pub fn is_action_just_pressed(&self, name: &str) -> bool {
+        let state = self;
         let Some(binds) = state.actions.get(name) else {
             return false;
         };
@@ -128,8 +126,8 @@ impl InputState {
     }
 
     /// Bind an input to an action.
-    pub fn bind_action(action: &str, bind: InputBinding) {
-        let mut state = Self::current_mut();
+    pub fn bind_action(&mut self, action: &str, bind: InputBinding) {
+        let state = self;
         state
             .actions
             .entry(action.to_string())
@@ -138,78 +136,30 @@ impl InputState {
     }
 
     /// Unbind a specific input from an action.
-    pub fn unbind_action(action: &str, bind: &InputBinding) {
-        let mut state = Self::current_mut();
-        if let Some(binds) = state.actions.get_mut(action) {
+    pub fn unbind_action(&mut self, action: &str, bind: &InputBinding) {
+        if let Some(binds) = self.actions.get_mut(action) {
             binds.remove(bind);
         }
     }
 
     /// Remove all bindings for an action.
-    pub fn unbind_action_all(action: &str) {
-        let mut state = Self::current_mut();
-        state.actions.remove(action);
+    pub fn unbind_action_all(&mut self, action: &str) {
+        self.actions.remove(action);
     }
 
     /// Get all registered action names.
-    pub fn list_actions() -> Vec<String> {
-        let state = Self::current();
-        let mut names: Vec<String> = state.actions.keys().cloned().collect();
+    pub fn list_actions(&mut self) -> Vec<String> {
+        let mut names: Vec<String> = self.actions.keys().cloned().collect();
         names.sort();
         names
     }
 
     /// Get bindings for an action.
-    pub fn action_bindings(action: &str) -> Option<Vec<InputBinding>> {
-        let state = Self::current();
-        state
-            .actions
+    pub fn action_bindings(&mut self, action: &str) -> Option<Vec<InputBinding>> {
+        self.actions
             .get(action)
             .map(|binds| binds.iter().cloned().collect())
     }
-}
-
-// ===== Public API for Input Actions =====
-
-/// Register an action with default bindings.
-pub fn register_action(name: &str, default_binds: Vec<InputBinding>) {
-    InputState::register_action(name, default_binds);
-}
-
-/// Check if an action is currently pressed.
-pub fn is_action_pressed(name: &str) -> bool {
-    InputState::is_action_pressed(name)
-}
-
-/// Check if an action was just pressed this frame.
-pub fn is_action_just_pressed(name: &str) -> bool {
-    InputState::is_action_just_pressed(name)
-}
-
-/// Bind an input to an action.
-pub fn bind_action(action: &str, bind: InputBinding) {
-    InputState::bind_action(action, bind);
-}
-
-/// Unbind a specific input from an action.
-pub fn unbind_action(action: &str, bind: &InputBinding) {
-    InputState::unbind_action(action, bind);
-}
-
-/// Remove all bindings for an action.
-pub fn unbind_action_all(action: &str) {
-    InputState::unbind_action_all(action);
-}
-
-/// List all registered actions with their bindings.
-pub fn list_action_bindings() -> Vec<(String, Vec<InputBinding>)> {
-    let mut result = Vec::new();
-    for name in InputState::list_actions() {
-        if let Some(binds) = InputState::action_bindings(&name) {
-            result.push((name, binds));
-        }
-    }
-    result
 }
 
 /// Parse an input binding from a string (e.g. "KeyW", "MouseLeft").
@@ -299,63 +249,13 @@ pub fn parse_input_binding(s: &str) -> Option<InputBinding> {
     key.map(InputBinding::Key)
 }
 
-/// Register default action bindings (WASD + common keys).
-pub fn register_default_actions() {
-    let mut state = InputState::current_mut();
-    if state.default_actions_registered {
-        return;
-    }
-    state.default_actions_registered = true;
-    drop(state);
-
-    register_action("move_forward", vec![InputBinding::Key(KeyCode::KeyW)]);
-    register_action("move_backward", vec![InputBinding::Key(KeyCode::KeyS)]);
-    register_action("move_left", vec![InputBinding::Key(KeyCode::KeyA)]);
-    register_action("move_right", vec![InputBinding::Key(KeyCode::KeyD)]);
-    register_action("move_up", vec![InputBinding::Key(KeyCode::Space)]);
-    register_action("move_down", vec![InputBinding::Key(KeyCode::ShiftLeft)]);
-    register_action("jump", vec![InputBinding::Key(KeyCode::Space)]);
-    register_action("sprint", vec![InputBinding::Key(KeyCode::ShiftLeft)]);
-    register_action("interact", vec![InputBinding::Key(KeyCode::KeyE)]);
-    register_action("attack", vec![InputBinding::Mouse(MouseButton::Left)]);
-    register_action("alt_attack", vec![InputBinding::Mouse(MouseButton::Right)]);
-    register_action(
-        "toggle_cursor",
-        vec![InputBinding::Mouse(MouseButton::Right)],
-    );
-    register_action("fullscreen", vec![InputBinding::Key(KeyCode::F11)]);
-    register_action("console", vec![InputBinding::Key(KeyCode::Backquote)]);
-    register_action("menu", vec![InputBinding::Key(KeyCode::Escape)]);
-}
-
 impl InputState {
-    pub fn initialize() {
-        INPUT_STATE.set(Mutex::new(InputState::default())).unwrap();
+    pub fn initialize(&mut self) {
         let _ = WINDOW_STATE.set(Mutex::new(WindowState::default()));
     }
 
-    pub fn current() -> std::sync::MutexGuard<'static, InputState> {
-        INPUT_STATE
-            .get()
-            .expect("InputState not initialized")
-            .lock()
-            .unwrap()
-    }
-
-    pub fn current_mut() -> std::sync::MutexGuard<'static, InputState> {
-        INPUT_STATE
-            .get()
-            .expect("InputState not initialized")
-            .lock()
-            .unwrap()
-    }
-
-    pub fn update_frame() {
-        let mut input_state = INPUT_STATE
-            .get()
-            .expect("InputState not initialized")
-            .lock()
-            .unwrap();
+    pub fn update_frame(&mut self) {
+        let input_state = self;
         input_state.keys_just_pressed.clear();
         // input_state.keys_just_released.clear();
         input_state.mouse_buttons_just_pressed.clear();
@@ -369,46 +269,28 @@ impl InputState {
         input_state.mouse_delta = (0.0, 0.0);
     }
 
-    pub fn is_key_pressed(key: KeyCode) -> bool {
-        Self::current().keys_pressed.contains(&key)
+    pub fn is_key_pressed(&mut self, key: KeyCode) -> bool {
+        self.keys_pressed.contains(&key)
     }
 
-    pub fn is_key_just_pressed(key: KeyCode) -> bool {
-        Self::current().keys_just_pressed.contains(&key)
+    pub fn is_key_just_pressed(&mut self, key: KeyCode) -> bool {
+        self.keys_just_pressed.contains(&key)
     }
 
-    pub fn is_mouse_button_pressed(button: MouseButton) -> bool {
-        Self::current().mouse_buttons_pressed.contains(&button)
+    pub fn is_mouse_button_pressed(&mut self, button: MouseButton) -> bool {
+        self.mouse_buttons_pressed.contains(&button)
     }
 
-    pub fn is_mouse_button_just_pressed(button: MouseButton) -> bool {
-        Self::current().mouse_buttons_just_pressed.contains(&button)
+    pub fn is_mouse_button_just_pressed(&mut self, button: MouseButton) -> bool {
+        self.mouse_buttons_just_pressed.contains(&button)
     }
 
-    pub fn is_mouse_button_just_released(button: MouseButton) -> bool {
-        Self::current()
-            .mouse_buttons_just_released
-            .contains(&button)
+    pub fn is_mouse_button_just_released(&mut self, button: MouseButton) -> bool {
+        self.mouse_buttons_just_released.contains(&button)
     }
 
-    pub fn mouse_position() -> (f32, f32) {
-        Self::current().mouse_position
-    }
-
-    pub fn mouse_delta() -> (f32, f32) {
-        Self::current().mouse_delta
-    }
-
-    pub fn mouse_scroll_delta() -> f32 {
-        Self::current().mouse_wheel_delta
-    }
-
-    pub fn get_mouse_world_position() -> Option<Vec3> {
-        let input_state = INPUT_STATE
-            .get()
-            .expect("InputState not initialized")
-            .lock()
-            .unwrap();
+    pub fn get_mouse_world_position(&mut self) -> Option<Vec3> {
+        let input_state = self;
         if let Some(camera) = &input_state.camera {
             let pos_2d = camera.screen_to_world(input_state.mouse_position);
             Some(Vec3::new(pos_2d.x, pos_2d.y, 0.0)) // Z = 0 для совместимости с 2D
@@ -416,23 +298,6 @@ impl InputState {
             None
         }
     }
-}
-
-/// Get mouse movement delta since last frame
-pub fn get_mouse_delta() -> (f32, f32) {
-    InputState::mouse_delta()
-}
-
-pub fn get_mouse_position() -> (f32, f32) {
-    InputState::mouse_position()
-}
-
-pub fn get_mouse_scroll_delta() -> f32 {
-    InputState::mouse_scroll_delta()
-}
-
-pub fn is_mouse_button_just_released(button: MouseButton) -> bool {
-    InputState::is_mouse_button_just_released(button)
 }
 
 // ===== Cursor Control =====

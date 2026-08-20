@@ -10,7 +10,7 @@ mod camera_ctrl;
 
 #[system]
 fn rotate_cubes(world: &mut World) {
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
     for (_, (transform, _mesh)) in world.query_mut::<(W<Transform>, R<MeshRenderer>)>() {
         transform.rotation *= Quat::from_rotation_y(0.5 * dt);
     }

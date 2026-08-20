@@ -142,24 +142,29 @@ impl World {
         self.resources.insert(key, Box::new(resource));
     }
 
-    pub fn delete_resource<T: 'static>(&mut self) -> Option<T> {
+    pub fn delete_resource<T: 'static>(&mut self) -> T {
         let key = TypeId::of::<T>();
         self.resources
             .remove(&key)
             .and_then(|b| b.downcast::<T>().ok())
             .map(|b| *b)
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
-    pub fn get_resource<T: 'static>(&self) -> Option<&T> {
+    pub fn get_resource<T: 'static>(&self) -> &T {
         let key = TypeId::of::<T>();
-        self.resources.get(&key).and_then(|b| b.downcast_ref::<T>())
+        self.resources
+            .get(&key)
+            .and_then(|b| b.downcast_ref::<T>())
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
-    pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
+    pub fn get_resource_mut<T: 'static>(&mut self) -> &mut T {
         let key = TypeId::of::<T>();
         self.resources
             .get_mut(&key)
             .and_then(|b| b.downcast_mut::<T>())
+            .unwrap_or_else(|| panic!("Resource {} not found.", any::type_name::<T>()))
     }
 
     /// Inserts the default value of `T` into the resource store

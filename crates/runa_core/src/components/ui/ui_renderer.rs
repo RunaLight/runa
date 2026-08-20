@@ -786,8 +786,7 @@ impl UiRenderer {
         Some(leaf.id)
     }
 
-    pub fn process_interaction(&mut self, camera: Option<&Camera>) {
-        let input = InputState::current();
+    pub fn process_interaction(&mut self, camera: Option<&Camera>, input: &mut InputState) {
         let (screen_x, screen_y) = input.mouse_position;
 
         let (mx, my) = match self.space {
@@ -816,7 +815,6 @@ impl UiRenderer {
             .contains(&winit::event::MouseButton::Left);
         let left_just_down = left_down && !self.interaction_was_pressed;
         let left_just_up = self.interaction_was_pressed && !left_down;
-        drop(input);
 
         let hovered_id = self.hit_test(mx, my);
         let pressed_node = self.interaction_pressed_node;

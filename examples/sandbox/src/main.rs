@@ -3,6 +3,7 @@ use runa_engine::core::components::{Camera, SpriteRenderer, Time, Transform};
 use runa_engine::core::glam::Vec3;
 use runa_engine::core::input::InputState;
 use runa_engine::core::KeyCode;
+use runa_engine::ecs::W;
 use runa_engine::prelude::{console_log, MessageLevel};
 use runa_engine::system;
 use runa_engine::{asset, ecs};
@@ -10,32 +11,35 @@ use runa_engine::{asset, ecs};
 #[system]
 fn player_movement(world: &mut ecs::World) {
     let speed = 8.0;
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
+    let mut input = world.delete_resource::<InputState>();
 
-    for (_, transform) in world.query_mut::<ecs::W<Transform>>() {
+    for (_, transform) in world.query_mut::<W<Transform>>() {
         let mut dir = Vec3::ZERO;
-        if InputState::is_key_pressed(KeyCode::KeyW) {
+        if input.is_key_pressed(KeyCode::KeyW) {
             dir.y += 1.0;
         }
-        if InputState::is_key_pressed(KeyCode::KeyS) {
+        if input.is_key_pressed(KeyCode::KeyS) {
             dir.y -= 1.0;
         }
-        if InputState::is_key_pressed(KeyCode::KeyD) {
+        if input.is_key_pressed(KeyCode::KeyD) {
             dir.x += 1.0;
         }
-        if InputState::is_key_pressed(KeyCode::KeyA) {
+        if input.is_key_pressed(KeyCode::KeyA) {
             dir.x -= 1.0;
         }
         transform.position += dir.normalize_or_zero() * speed * dt;
     }
 
-    if InputState::is_key_just_pressed(KeyCode::KeyF) {
+    if input.is_key_just_pressed(KeyCode::KeyF) {
         let pos = world
             .query::<ecs::R<Transform>>()
             .next()
             .map(|(_, t)| t.position);
         console_log!(world, MessageLevel::Info, "Player at {:?}", pos);
     }
+
+    world.add_resource(input);
 }
 
 fn main() {

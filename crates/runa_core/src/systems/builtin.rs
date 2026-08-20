@@ -28,11 +28,16 @@ fn audio_engine() -> &'static Mutex<Option<AudioEngine>> {
 
 #[system("crate")]
 pub fn cursor_interaction(world: &mut runa_ecs::World) {
-    let world_pos = match InputState::get_mouse_world_position() {
+    let world_pos = match world
+        .get_resource_mut::<InputState>()
+        .get_mouse_world_position()
+    {
         Some(p) => p,
         None => return,
     };
-    let mouse_down = InputState::is_mouse_button_just_pressed(MouseButton::Left);
+    let mouse_down = world
+        .get_resource_mut::<InputState>()
+        .is_mouse_button_just_pressed(MouseButton::Left);
 
     for (_, (interactable, transform)) in world.query_mut::<(W<CursorInteractable>, R<Transform>)>()
     {
@@ -82,13 +87,13 @@ pub fn audio_system(world: &mut runa_ecs::World) {
 }
 
 #[system("crate")]
-pub fn eventbus_system(_world: &mut runa_ecs::World) {
-    EventBus::process();
+pub fn eventbus_system(world: &mut runa_ecs::World) {
+    world.get_resource_mut::<EventBus>().process();
 }
 
 #[system("crate")]
 pub fn sprite_animator_system(world: &mut runa_ecs::World) {
-    let dt = world.get_resource::<Time>().unwrap().delta;
+    let dt = world.get_resource::<Time>().delta;
     for (_, (animator, sprite)) in world.query_mut::<(W<SpriteAnimator>, W<SpriteRenderer>)>() {
         let uv = animator.tick(dt);
         sprite.uv_rect = uv;

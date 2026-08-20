@@ -121,10 +121,15 @@ impl<'window> App<'window> {
         );
         let camera_ref = Some(camera);
 
+        let mut input = self.world.delete_resource::<InputState>();
+
         for (_, ui) in self.world.query_mut::<W<UiRenderer>>() {
             ui.layout(viewport, camera_ref);
-            ui.process_interaction(camera_ref);
+            ui.process_interaction(camera_ref, &mut input);
         }
+
+        self.world.add_resource(input);
+
         let mut ui_with_transform: Vec<u64> = Vec::new();
         for (entity, (ui, transform)) in self.world.query::<(R<UiRenderer>, R<Transform>)>() {
             ui.build_render_commands(&mut self.queue, camera_ref, Some(transform));
@@ -237,8 +242,8 @@ impl<'window> App<'window> {
         self.render_ecs_ui(&camera);
 
         if let (Some(renderer), Some(window)) = (&mut self.renderer, &self.window) {
-            let time_scale = self.world.get_resource::<Time>().unwrap().time_scale;
-            let console = self.world.get_resource_mut::<Console>().unwrap();
+            let time_scale = self.world.get_resource::<Time>().time_scale;
+            let console = self.world.get_resource_mut::<Console>();
 
             console.current_fps = self.current_fps;
             console.current_frame_time_ms = self.current_frame_time_ms;
@@ -348,8 +353,8 @@ impl<'window> ApplicationHandler for App<'window> {
         let update_start = Instant::now();
 
         while self.accumulator >= BASE_TIMESTEP {
+            let mut input_state = self.world.delete_resource::<InputState>();
             {
-                let mut input_state = InputState::current_mut();
                 input_state.camera = self
                     .world
                     .query::<(runa_ecs::R<Camera>, runa_ecs::R<Transform>)>()
@@ -363,12 +368,14 @@ impl<'window> ApplicationHandler for App<'window> {
                     });
             }
 
+            self.world.add_resource(input_state);
+
             for (_, transform) in self.world.query_mut::<runa_ecs::W<Transform>>() {
                 transform.prepare_for_update();
             }
 
             {
-                let time = self.world.get_resource_mut::<Time>().unwrap();
+                let time = self.world.get_resource_mut::<Time>();
                 time.tick += 1;
                 time.unscaled_delta = BASE_TIMESTEP;
                 time.delta = BASE_TIMESTEP * time.time_scale;
@@ -378,7 +385,7 @@ impl<'window> ApplicationHandler for App<'window> {
 
             self.scheduler.run(&mut self.world);
 
-            InputState::update_frame();
+            self.world.get_resource_mut::<InputState>().update_frame();
 
             self.accumulator -= BASE_TIMESTEP;
         }
@@ -427,7 +434,7 @@ impl<'window> ApplicationHandler for App<'window> {
             WindowEvent::RedrawRequested => {
                 self.render();
 
-                let fps_max = self.world.get_resource_mut::<Console>().unwrap().fps_max;
+                let fps_max = self.world.get_resource_mut::<Console>().fps_max;
 
                 if fps_max.is_finite() && fps_max > 0.0 {
                     let min_frame_time = Duration::from_secs_f32(1.0 / fps_max);
@@ -455,14 +462,14 @@ impl<'window> ApplicationHandler for App<'window> {
                 self.toggle_fullscreen();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                let mut console = self.world.delete_resource::<Console>().unwrap();
+                let mut console = self.world.delete_resource::<Console>();
                 console.handle_keyboard(&event, event.state, &mut self.world);
                 let visible = console.is_visible();
                 self.world.add_resource(console);
 
                 if !visible {
                     if let PhysicalKey::Code(key_code) = event.physical_key {
-                        let mut input_state = InputState::current_mut();
+                        let input_state = self.world.get_resource_mut::<InputState>();
                         if event.state == ElementState::Pressed {
                             input_state.keys_pressed.insert(key_code);
                             input_state.keys_just_pressed.insert(key_code);
@@ -474,7 +481,7 @@ impl<'window> ApplicationHandler for App<'window> {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                let mut input_state = InputState::current_mut();
+                let input_state = self.world.get_resource_mut::<InputState>();
                 input_state.mouse_position = (position.x as f32, position.y as f32);
             }
 
@@ -482,12 +489,12 @@ impl<'window> ApplicationHandler for App<'window> {
                 delta: MouseScrollDelta::LineDelta(_, y),
                 ..
             } => {
-                let mut input_state = InputState::current_mut();
+                let input_state = self.world.get_resource_mut::<InputState>();
                 input_state.mouse_wheel_delta = y;
             }
 
             WindowEvent::MouseInput { state, button, .. } => {
-                let mut input_state = InputState::current_mut();
+                let input_state = self.world.get_resource_mut::<InputState>();
                 if state == ElementState::Pressed {
                     input_state.mouse_buttons_pressed.insert(button);
                     input_state.mouse_buttons_just_pressed.insert(button);
@@ -507,7 +514,7 @@ impl<'window> ApplicationHandler for App<'window> {
         event: DeviceEvent,
     ) {
         if let DeviceEvent::MouseMotion { delta } = event {
-            let mut input_state = InputState::current_mut();
+            let input_state = self.world.get_resource_mut::<InputState>();
             input_state.mouse_delta.0 += delta.0 as f32;
             input_state.mouse_delta.1 += delta.1 as f32;
         }

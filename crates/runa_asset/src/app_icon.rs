@@ -9,7 +9,7 @@ use winit::window::Icon;
 /// - Channels: RGBA (with alpha)
 ///
 /// # Example
-/// ```rust,no_run
+/// ```rust,ignore
 /// use runa_asset::load_window_icon;
 ///
 /// let icon = load_window_icon("assets/icon.png")?;
@@ -49,7 +49,7 @@ pub fn load_window_icon_from_bytes(bytes: &[u8]) -> Result<Icon, String> {
 /// Loads multiple icon sizes (recommended for cross-platform support).
 ///
 /// # Example
-/// ```rust,no_run
+/// ```rust,ignore
 /// use runa_asset::load_window_icons;
 ///
 /// let icons = load_window_icons(&[

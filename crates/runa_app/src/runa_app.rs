@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use runa_core::{components::Time, Console};
+use runa_core::{components::Time, input::InputState, Console, EventBus};
 use winit::{
     error::EventLoopError,
     event_loop::{ControlFlow, EventLoop},
@@ -18,9 +18,6 @@ impl RunaApp {
     ) -> Result<(), EventLoopError> {
         let event_loop = EventLoop::new()?;
         event_loop.set_control_flow(ControlFlow::Poll);
-
-        runa_core::input::InputState::initialize();
-        runa_core::input::register_default_actions();
 
         let mut scheduler = runa_ecs::Scheduler::new();
         scheduler.collect_registered_systems("Update");
@@ -65,4 +62,6 @@ impl RunaApp {
 fn init_resources(world: &mut runa_ecs::World) {
     world.init_resource::<Time>();
     world.init_resource::<Console>();
+    world.init_resource::<EventBus>();
+    world.init_resource::<InputState>();
 }
