@@ -1,7 +1,9 @@
+mod handle;
 mod ui_asset;
 mod ui_builder;
 mod ui_node;
 
+pub use handle::{ContainerHandle, ImageHandle, SliderHandle, TextHandle};
 pub use ui_asset::{
     AnchorAsset, ContainerKindAsset, EdgeInsetsAsset, ImagePropsAsset, LayoutPropsAsset,
     SliderPropsAsset, StylePropsAsset, TextAlignAsset, TextPropsAsset, UiAssetFile, UiNodeAsset,
