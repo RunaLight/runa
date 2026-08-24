@@ -3,6 +3,7 @@ pub mod audio_listener;
 pub mod audio_source;
 mod camera;
 mod collider2d;
+mod collider3d;
 mod cursor_interactable;
 mod light;
 mod mesh_renderer;
@@ -14,9 +15,8 @@ mod sorting;
 mod sprite_animator;
 mod sprite_renderer;
 mod tilemap;
-mod time;
 mod transform;
-pub mod ui;
+mod ui_renderer;
 mod world_atmosphere;
 
 pub use active_camera::ActiveCamera;
@@ -24,7 +24,14 @@ pub use audio_listener::AudioListener;
 pub use audio_source::AudioSource;
 pub use camera::Camera;
 pub use camera::ProjectionType;
-pub use collider2d::Collider2D;
+pub use collider2d::{
+    Collider2D, Collider2DShape, OnTriggerEnter2D, OnTriggerExit2D, OnTriggerStay2D,
+    WorldCollider2D,
+};
+pub use collider3d::{
+    Collider3D, Collider3DShape, OnTriggerEnter3D, OnTriggerExit3D, OnTriggerStay3D,
+    WorldCollider3D,
+};
 pub use cursor_interactable::CursorInteractable;
 pub use light::{DirectionalLight, PointLight};
 pub use mesh_renderer::AlphaMode;
@@ -48,5 +55,4 @@ pub use tilemap::TilemapRenderer;
 pub use transform::Transform;
 pub use world_atmosphere::{BackgroundMode, WorldAtmosphere};
 
-pub use time::Time;
-pub use ui::{FontId, UiRenderer};
+pub use ui_renderer::UiRenderer;

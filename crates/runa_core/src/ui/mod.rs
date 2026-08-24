@@ -1,6 +1,6 @@
 mod ui_asset;
+mod ui_builder;
 mod ui_node;
-mod ui_renderer;
 
 pub use ui_asset::{
     AnchorAsset, ContainerKindAsset, EdgeInsetsAsset, ImagePropsAsset, LayoutPropsAsset,
@@ -12,7 +12,14 @@ pub use ui_node::{
     RichTextSegment, SliderProps, StyleProps, StyleSheet, TextAlign, TextProps, UiNode, UiNodeId,
     UiNodeKind, UiRect,
 };
-pub use ui_renderer::{CanvasSpace, UiNodeBuilder, UiRenderer};
+
+pub use ui_builder::UiNodeBuilder;
+
+pub enum CanvasSpace {
+    Screen,
+    Camera,
+    World,
+}
 
 /// Parse basic rich-text tags into segments.
 ///

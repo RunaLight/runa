@@ -1,6 +1,6 @@
 use runa_engine::app::{RunaApp, RunaWindowConfig};
 use runa_engine::core::components::{AudioListener, AudioSource, Camera, Transform};
-use runa_engine::core::input::InputState;
+use runa_engine::core::resources::input::InputState;
 use runa_engine::core::KeyCode;
 use runa_engine::system;
 use runa_engine::{asset, ecs};

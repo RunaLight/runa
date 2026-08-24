@@ -1,6 +1,7 @@
 use runa_engine::app::{RunaApp, RunaWindowConfig};
-use runa_engine::core::components::{Mesh, MeshRenderer, Time, Transform};
+use runa_engine::core::components::{Mesh, MeshRenderer, Transform};
 use runa_engine::core::glam::{Quat, Vec3};
+use runa_engine::core::resources::Time;
 use runa_engine::ecs::{World, R, W};
 use runa_engine::system;
 

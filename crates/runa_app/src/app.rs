@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use runa_core::components::Time;
 use runa_core::components::{
-    ui::UiRenderer, BackgroundMode, Camera, MeshRenderer, Sorting, SpriteRenderer, Transform,
+    BackgroundMode, Camera, MeshRenderer, Sorting, SpriteRenderer, Transform, UiRenderer,
     WorldAtmosphere,
 };
-use runa_core::input::InputState;
+use runa_core::resources::input::{self, InputState};
+use runa_core::resources::Time;
 use runa_core::{glam, Console};
 use runa_ecs::{R, W};
 use runa_render::Renderer;
@@ -73,8 +73,8 @@ pub struct App<'window> {
 
 impl<'window> App<'window> {
     fn toggle_fullscreen(&mut self) {
-        runa_core::input::toggle_fullscreen();
-        self.config.fullscreen = runa_core::input::is_fullscreen().unwrap_or(false);
+        input::toggle_fullscreen();
+        self.config.fullscreen = input::is_fullscreen().unwrap_or(false);
     }
 
     fn sync_camera(&mut self) {
@@ -197,7 +197,7 @@ impl<'window> App<'window> {
             .query::<(R<Camera>, R<Transform>)>()
             .next()
             .map(|(_, (c, t))| {
-                let mut resolved = t.clone();
+                let mut resolved = *t;
                 resolved.position = t.interpolated_position(self.interpolation_alpha);
                 resolved.rotation = t.interpolated_rotation(self.interpolation_alpha);
                 c.resolved_with_transform(Some(&resolved))
@@ -278,7 +278,7 @@ impl<'window> App<'window> {
                 self.frame_count = 0;
                 self.last_fps_update = now;
                 self.config.title =
-                    runa_core::input::window_title().unwrap_or_else(|| self.config.title.clone());
+                    input::window_title().unwrap_or_else(|| self.config.title.clone());
                 if self.config.show_fps_in_title {
                     window.set_title(&format!(
                         "{} - {:.1} FPS",
@@ -321,16 +321,16 @@ impl<'window> ApplicationHandler for App<'window> {
                 window.set_window_icon(Some(icon));
             }
 
-            runa_core::input::initialize_window_state(
+            input::initialize_window_state(
                 self.config.title.clone(),
                 self.config.fullscreen,
                 (self.config.width, self.config.height),
             );
             self.window = Some(window.clone());
 
-            runa_core::input::set_window_handle(&window);
-            runa_core::input::set_window_size(self.config.width, self.config.height);
-            runa_core::input::set_fullscreen(self.config.fullscreen);
+            input::set_window_handle(&window);
+            input::set_window_size(self.config.width, self.config.height);
+            input::set_fullscreen(self.config.fullscreen);
 
             let renderer = Renderer::new(window.clone(), self.config.vsync);
             self.renderer = Some(renderer);
@@ -418,10 +418,9 @@ impl<'window> ApplicationHandler for App<'window> {
                     }
                     self.config.width = new_size.width;
                     self.config.height = new_size.height;
-                    runa_core::input::initialize_window_state(
-                        runa_core::input::window_title()
-                            .unwrap_or_else(|| self.config.title.clone()),
-                        runa_core::input::is_fullscreen().unwrap_or(self.config.fullscreen),
+                    input::initialize_window_state(
+                        input::window_title().unwrap_or_else(|| self.config.title.clone()),
+                        input::is_fullscreen().unwrap_or(self.config.fullscreen),
                         (new_size.width, new_size.height),
                     );
                 }

@@ -1,7 +1,8 @@
 use runa_engine::app::{RunaApp, RunaWindowConfig};
-use runa_engine::core::components::ui::{CanvasSpace, UiRenderer};
+use runa_engine::core::components::UiRenderer;
 use runa_engine::core::components::{Camera, Transform};
 use runa_engine::core::glam::Vec3;
+use runa_engine::core::ui::CanvasSpace;
 use runa_engine::ecs;
 
 fn ui_builder(ui: &mut UiRenderer) {
