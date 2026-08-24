@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use super::{
+    Anchor, ContainerKind, EdgeInsets, ImageProps, LayoutProps, SliderProps, StyleProps, TextAlign,
+    TextProps, UiNode, UiNodeId, UiNodeKind,
+};
+use crate::{components::UiRenderer, ui::CanvasSpace};
 use runa_asset::{Handle, TextureAsset};
 use serde::{Deserialize, Serialize};
-
-use super::{
-    Anchor, CanvasSpace, ContainerKind, EdgeInsets, ImageProps, LayoutProps, SliderProps,
-    StyleProps, TextAlign, TextProps, UiNode, UiNodeId, UiNodeKind, UiRenderer,
-};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UiNodeAsset {

@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use crate::components::Camera;
-use crate::components::Time;
-use crate::input::InputState;
+use crate::resources::input;
+use crate::resources::input::InputState;
+use crate::resources::time::Time;
 use runa_asset::Handle;
 use runa_asset::TextureAsset;
 use runa_ecs::World;
@@ -559,7 +560,9 @@ impl Console {
                             ),
                             MessageLevel::Error,
                         );
-                    } else if let Some(binding) = crate::input::parse_input_binding(key_str) {
+                    } else if let Some(binding) =
+                        crate::resources::input::parse_input_binding(key_str)
+                    {
                         world
                             .get_resource_mut::<InputState>()
                             .bind_action(&action, binding);
@@ -606,7 +609,7 @@ impl Console {
                         .iter()
                         .any(|a| a == action)
                     {
-                        if let Some(binding) = crate::input::parse_input_binding(key_str) {
+                        if let Some(binding) = input::parse_input_binding(key_str) {
                             world
                                 .get_resource_mut::<InputState>()
                                 .unbind_action(action, &binding);
@@ -1133,11 +1136,11 @@ impl MessageLevel {
 #[macro_export]
 macro_rules! console_log {
     ($world:expr, $level:expr, $($arg:tt)*) => {
-        $world.get_resource_mut::<$crate::console::Console>()
+        $world.get_resource_mut::<$crate::resources::console::Console>()
             .add_message_with_level(format!($($arg)*), $level)
     };
     ($world:expr, $($arg:tt)*) => {
-        $world.get_resource_mut::<$crate::console::Console>()
-            .add_message_with_level(format!($($arg)*), $crate::console::MessageLevel::Info)
+        $world.get_resource_mut::<$crate::resources::console::Console>()
+            .add_message_with_level(format!($($arg)*), $crate::resources::console::MessageLevel::Info)
     }
 }

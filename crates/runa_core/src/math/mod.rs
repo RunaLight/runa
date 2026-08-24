@@ -3,6 +3,9 @@
 //! Modeled after Unity's `Mathf` — provides `lerp`, `smooth_damp`,
 //! `smooth_step`, easing curves, and extension methods for `f32`, `Vec2`, etc.
 
+pub mod collision2d;
+pub mod collision3d;
+
 use glam::{Vec2, Vec3, Vec4};
 
 // ── scalar lerp ──────────────────────────────────────────────────────

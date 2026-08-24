@@ -1,8 +1,11 @@
 use runa_engine::core::{
-    components::{Camera, Time, Transform},
+    components::{Camera, Transform},
     ecs::{World, W},
     glam::{Quat, Vec3},
-    input::{lock_cursor, show_cursor, InputState},
+    resources::{
+        input::{lock_cursor, show_cursor, InputState},
+        Time,
+    },
     KeyCode,
 };
 use runa_engine::system;

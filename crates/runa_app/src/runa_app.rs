@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use runa_core::{components::Time, input::InputState, Console, EventBus};
+use runa_core::{resources::input::InputState, resources::Time, Console, EventBus};
 use winit::{
     error::EventLoopError,
     event_loop::{ControlFlow, EventLoop},

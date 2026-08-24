@@ -1,58 +1,95 @@
 use glam::Vec2;
 
-/// Simple axis-aligned 2D collider represented by half extents.
-#[derive(Clone, Copy, Debug, Default)]
+use crate::collision2d::rect_corners;
+use crate::components::Transform;
+use crate::resources::event::Event;
+use runa_ecs::Entity;
+
+#[derive(Clone, Copy)]
+pub enum Collider2DShape {
+    Rect { half_size: Vec2 },
+    Circle { radius: f32 },
+}
+
+/// 2D collider attached to an entity. The world-space position/orientation
+/// comes from `Transform`; this struct only holds the local shape + flags.
+#[derive(Clone, Copy)]
 pub struct Collider2D {
-    pub half_size: Vec2,
+    pub shape: Collider2DShape,
+    pub offset: Vec2,
     pub enabled: bool,
     pub is_trigger: bool,
+    pub layer: u32,
 }
 
 impl Collider2D {
-    pub fn new(width: f32, height: f32) -> Self {
+    pub fn new_rect(size: Vec2, offset: Vec2, enabled: bool, is_trigger: bool, layer: u32) -> Self {
         Self {
-            half_size: Vec2::new(width * 0.5, height * 0.5),
-            enabled: true,
-            is_trigger: true,
+            shape: Collider2DShape::Rect {
+                half_size: size * 0.5,
+            },
+            offset,
+            enabled,
+            is_trigger,
+            layer,
         }
     }
 
-    pub fn with_half_size(half_size: Vec2) -> Self {
+    pub fn new_circle(
+        radius: f32,
+        offset: Vec2,
+        enabled: bool,
+        is_trigger: bool,
+        layer: u32,
+    ) -> Self {
         Self {
-            half_size,
-            enabled: true,
-            is_trigger: true,
+            shape: Collider2DShape::Circle { radius },
+            offset,
+            enabled,
+            is_trigger,
+            layer,
         }
     }
 
-    pub fn min(&self, center: Vec2) -> Vec2 {
-        center - self.half_size
-    }
-
-    pub fn max(&self, center: Vec2) -> Vec2 {
-        center + self.half_size
-    }
-
-    pub fn contains_point(&self, point: Vec2, center: Vec2) -> bool {
-        if !self.enabled {
-            return false;
+    /// Resolve this collider into world space, using the entity's transform.
+    /// Called once per entity per frame in the collision system.
+    pub fn to_world(&self, t: &Transform) -> WorldCollider2D {
+        let center = Vec2::new(t.position.x, t.position.y);
+        match self.shape {
+            Collider2DShape::Rect { half_size } => WorldCollider2D::Rect {
+                corners: rect_corners(center, t.rotation, half_size, self.offset),
+            },
+            Collider2DShape::Circle { radius } => WorldCollider2D::Circle {
+                center: center + self.offset,
+                radius,
+            },
         }
-
-        let min = self.min(center);
-        let max = self.max(center);
-        point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y
-    }
-
-    pub fn intersects(&self, center: Vec2, other: &Collider2D, other_center: Vec2) -> bool {
-        if !self.enabled || !other.enabled {
-            return false;
-        }
-
-        let min = self.min(center);
-        let max = self.max(center);
-        let other_min = other.min(other_center);
-        let other_max = other.max(other_center);
-
-        min.x <= other_max.x && max.x >= other_min.x && min.y <= other_max.y && max.y >= other_min.y
     }
 }
+
+/// A collider already resolved into world space. Typed (no `Option`):
+/// `Rect` always carries `corners`, `Circle` always carries `center` + `radius`.
+#[derive(Clone, Copy)]
+pub enum WorldCollider2D {
+    Rect { corners: [Vec2; 4] },
+    Circle { center: Vec2, radius: f32 },
+}
+
+pub struct OnTriggerEnter2D {
+    pub this: Entity,
+    pub other: Entity,
+}
+
+pub struct OnTriggerExit2D {
+    pub this: Entity,
+    pub other: Entity,
+}
+
+pub struct OnTriggerStay2D {
+    pub this: Entity,
+    pub other: Entity,
+}
+
+impl Event for OnTriggerEnter2D {}
+impl Event for OnTriggerExit2D {}
+impl Event for OnTriggerStay2D {}

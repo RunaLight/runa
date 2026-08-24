@@ -1,7 +1,7 @@
 use runa_engine::app::{RunaApp, RunaWindowConfig};
-use runa_engine::core::components::{Camera, SpriteRenderer, Time, Transform};
+use runa_engine::core::components::{Camera, SpriteRenderer, Transform};
 use runa_engine::core::glam::Vec3;
-use runa_engine::core::input::InputState;
+use runa_engine::core::resources::{input::InputState, Time};
 use runa_engine::core::KeyCode;
 use runa_engine::ecs::W;
 use runa_engine::prelude::{console_log, MessageLevel};

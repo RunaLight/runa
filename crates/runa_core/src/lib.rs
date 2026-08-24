@@ -1,16 +1,15 @@
 pub mod audio;
 pub mod color;
 pub mod components;
-pub mod console;
 pub mod debug_renderer;
-pub mod input;
 pub mod math;
+pub mod resources;
 pub mod systems;
-
+pub mod ui;
 pub use color::Color;
-pub use console::{Console, ConsoleCommand, MessageLevel};
 pub use math::*;
-pub use systems::event_system::EventBus;
+pub use resources::console::{Console, ConsoleCommand, MessageLevel};
+pub use resources::event::EventBus;
 
 pub use runa_ecs;
 pub use runa_ecs as ecs;
