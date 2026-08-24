@@ -20,9 +20,10 @@ impl RunaApp {
         event_loop.set_control_flow(ControlFlow::Poll);
 
         let mut scheduler = runa_ecs::Scheduler::new();
-        scheduler.collect_registered_systems("Update");
+        scheduler.collect_registered_systems();
 
         init_resources(&mut world);
+        scheduler.run_stage(runa_ecs::Stage::Start, &mut world);
 
         let mut app = App {
             window: None,

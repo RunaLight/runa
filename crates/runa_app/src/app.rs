@@ -383,7 +383,8 @@ impl<'window> ApplicationHandler for App<'window> {
                 time.elapsed += time.delta;
             }
 
-            self.scheduler.run(&mut self.world);
+            self.scheduler
+                .run_stage(runa_ecs::Stage::Update, &mut self.world);
 
             self.world.get_resource_mut::<InputState>().update_frame();
 

@@ -87,7 +87,7 @@ fn ui_builder(ui: &mut UiRenderer) -> Option<TextHandle> {
 }
 
 /// Animates the `PulseText` node's color through the RGB wheel each frame.
-#[system]
+#[system(Update)]
 fn pulse_text_system(world: &mut World) {
     let t = world.get_resource::<Time>().elapsed;
 
@@ -98,6 +98,12 @@ fn pulse_text_system(world: &mut World) {
     for (_, (ui, pulse)) in world.query_mut::<(W<UiRenderer>, W<PulseText>)>() {
         pulse.handle.set_color(ui, [r, g, b, 1.0]);
     }
+}
+
+/// Runs once at startup (after resources are initialized).
+#[system(Start)]
+fn startup_banner(_world: &mut World) {
+    println!("[startup] Runa UI demo initialized");
 }
 
 fn main() {
