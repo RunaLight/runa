@@ -9,7 +9,7 @@ use crate::camera_ctrl::spawn_camera;
 
 mod camera_ctrl;
 
-#[system]
+#[system(Update)]
 fn rotate_cubes(world: &mut World) {
     let dt = world.get_resource::<Time>().delta;
     for (_, (transform, _mesh)) in world.query_mut::<(W<Transform>, R<MeshRenderer>)>() {

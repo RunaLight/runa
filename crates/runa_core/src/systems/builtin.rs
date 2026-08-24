@@ -32,7 +32,7 @@ fn audio_engine() -> &'static Mutex<Option<AudioEngine>> {
     })
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn cursor_interaction(world: &mut runa_ecs::World) {
     let world_pos = match world
         .get_resource_mut::<InputState>()
@@ -59,7 +59,7 @@ pub fn cursor_interaction(world: &mut runa_ecs::World) {
     }
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn audio_system(world: &mut runa_ecs::World) {
     let mut guard = audio_engine().lock().unwrap();
     let Some(engine) = guard.as_mut() else {
@@ -92,12 +92,12 @@ pub fn audio_system(world: &mut runa_ecs::World) {
     engine.cleanup();
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn eventbus_system(world: &mut runa_ecs::World) {
     world.get_resource_mut::<EventBus>().process();
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn sprite_animator_system(world: &mut runa_ecs::World) {
     let dt = world.get_resource::<Time>().delta;
     for (_, (animator, sprite)) in world.query_mut::<(W<SpriteAnimator>, W<SpriteRenderer>)>() {
@@ -112,7 +112,7 @@ struct Collider2DSnapshot {
     world: WorldCollider2D,
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn collision_2d_system(world: &mut runa_ecs::World) {
     // ── Pass 1: read. Copy each enabled collider into a Vec, resolved to
     //    world space exactly once. The world borrow ends here. ──────────────
@@ -194,7 +194,7 @@ struct Collider3DSnapshot {
     world: WorldCollider3D,
 }
 
-#[system("crate")]
+#[system(Update)]
 pub fn collision_3d_system(world: &mut runa_ecs::World) {
     let mut colliders: Vec<Collider3DSnapshot> = Vec::new();
 

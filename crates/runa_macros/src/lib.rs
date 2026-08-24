@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, ItemStruct, LitStr};
+use syn::{parse_macro_input, Ident, ItemFn, ItemStruct};
 
 #[proc_macro_attribute]
 pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -9,24 +9,37 @@ pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     let block = &input.block;
     let name = &sig.ident;
 
-    let crate_path: proc_macro2::TokenStream = if attr.is_empty() {
-        "::runa_engine".parse().unwrap()
-    } else {
-        let lit: LitStr = syn::parse(attr)
-            .expect("expected optional crate path argument, e.g. #[system(\"::my_crate\")]");
-        lit.value().parse().expect("invalid crate path")
-    };
+    let stage_ident = parse_stage(proc_macro2::TokenStream::from(attr));
 
     TokenStream::from(quote! {
         #sig #block
 
-        #crate_path::ecs::inventory::submit! {
-            #crate_path::ecs::SystemDescriptor {
+        ::runa_ecs::inventory::submit! {
+            ::runa_ecs::SystemDescriptor {
                 name: stringify!(#name),
                 func: #name,
+                stage: ::runa_ecs::Stage::#stage_ident,
             }
         }
     })
+}
+
+/// Parse the `#[system(...)]` argument into a `Stage` variant identifier.
+///
+/// Accepted forms:
+/// - `#[system]`            -> `Stage::Update`
+/// - `#[system(Update)]`    -> `Stage::Update`
+/// - `#[system(Start)]`     -> `Stage::Start`
+fn parse_stage(attr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    if attr.is_empty() {
+        return quote::quote! { Update };
+    }
+    match syn::parse2::<Ident>(attr) {
+        Ok(ident) => quote::quote! { #ident },
+        Err(_) => panic!(
+            "invalid #[system] argument. Use #[system], #[system(Update)], or #[system(Start)]"
+        ),
+    }
 }
 
 #[proc_macro_attribute]

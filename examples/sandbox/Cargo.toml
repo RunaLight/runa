@@ -7,3 +7,4 @@ authors.workspace = true
 
 [dependencies]
 runa_engine = { path = "../../crates/runa_engine" }
+runa_ecs = { path = "../../crates/runa_ecs" }
