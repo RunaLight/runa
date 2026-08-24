@@ -5,7 +5,10 @@ use runa_render_api::FontId;
 
 use crate::{
     components::UiRenderer,
-    ui::{Anchor, InteractionState, LayoutProps, StyleProps, UiNodeId, UiNodeKind},
+    ui::{
+        Anchor, ContainerHandle, ImageHandle, InteractionState, LayoutProps, SliderHandle,
+        StyleProps, TextHandle, UiNodeId, UiNodeKind,
+    },
 };
 
 pub struct UiNodeBuilder<'a> {
@@ -37,6 +40,31 @@ impl<'a> UiNodeBuilder<'a> {
 
     pub fn id(&self) -> UiNodeId {
         self.id
+    }
+
+    /// Finish building and return the raw node id.
+    pub fn build(self) -> UiNodeId {
+        self.id
+    }
+
+    /// Finish building and return a typed text handle.
+    pub fn into_text(self) -> TextHandle {
+        TextHandle(self.id)
+    }
+
+    /// Finish building and return a typed image handle.
+    pub fn into_image(self) -> ImageHandle {
+        ImageHandle(self.id)
+    }
+
+    /// Finish building and return a typed slider handle.
+    pub fn into_slider(self) -> SliderHandle {
+        SliderHandle(self.id)
+    }
+
+    /// Finish building and return a typed container/panel handle.
+    pub fn into_container(self) -> ContainerHandle {
+        ContainerHandle(self.id)
     }
 
     pub fn named(self, name: impl Into<String>) -> Self {
@@ -189,7 +217,11 @@ impl<'a> UiNodeBuilder<'a> {
     pub fn with_text_color(self, r: f32, g: f32, b: f32, a: f32) -> Self {
         if let Some(node) = self.renderer.node_mut(self.id) {
             if let UiNodeKind::Text(ref mut props) = node.kind {
-                props.color = [r, g, b, a];
+                let c = [r, g, b, a];
+                props.color = c;
+                for seg in &mut props.segments {
+                    seg.color = c;
+                }
             }
         }
         self

@@ -1,18 +1,36 @@
 use runa_engine::app::{RunaApp, RunaWindowConfig};
-use runa_engine::core::components::UiRenderer;
-use runa_engine::core::components::{Camera, Transform};
+use runa_engine::core::components::{Camera, Transform, UiRenderer};
+use runa_engine::core::ecs::{World, W};
 use runa_engine::core::glam::Vec3;
-use runa_engine::core::ui::CanvasSpace;
-use runa_engine::ecs;
+use runa_engine::core::resources::Time;
+use runa_engine::core::ui::{CanvasSpace, TextHandle};
+use runa_engine::system;
 
-fn ui_builder(ui: &mut UiRenderer) {
+/// Component (sits on the same entity as the screen `UiRenderer`) holding the
+/// handle of the text node whose color is animated every frame.
+#[derive(Clone, Copy)]
+struct PulseText {
+    handle: TextHandle,
+}
+
+fn ui_builder(ui: &mut UiRenderer) -> Option<TextHandle> {
     ui.clear();
 
     if matches!(ui.space, CanvasSpace::Screen) {
+        let mut pulse_handle: Option<TextHandle> = None;
+
         ui.vbox(|ui| {
             ui.add_text("Runa Engine UI Demo")
                 .with_font_size(28)
                 .with_text_color(0.0, 0.8, 1.0, 1.0);
+
+            // Text whose color is animated at runtime via a typed handle.
+            pulse_handle = Some(
+                ui.add_text("RGB Pulse")
+                    .with_font_size(22)
+                    .with_text_color(1.0, 1.0, 1.0, 1.0)
+                    .into_text(),
+            );
 
             let s: String = "RichText".into();
 
@@ -40,9 +58,9 @@ fn ui_builder(ui: &mut UiRenderer) {
         .with_gap(8.0)
         .with_pos(40.0, 40.0)
         .with_size(300.0, 400.0);
-    }
 
-    if matches!(ui.space, CanvasSpace::World) {
+        pulse_handle
+    } else {
         ui.vbox(|ui| {
             ui.add_text("World-Space UI")
                 .with_font_size(24)
@@ -63,17 +81,38 @@ fn ui_builder(ui: &mut UiRenderer) {
         .with_gap(6.0)
         .with_pos(0.0, 0.0)
         .with_size(160.0, 200.0);
+
+        None
+    }
+}
+
+/// Animates the `PulseText` node's color through the RGB wheel each frame.
+#[system]
+fn pulse_text_system(world: &mut World) {
+    let t = world.get_resource::<Time>().elapsed;
+
+    let r = (t * 2.0).sin() * 0.5 + 0.5;
+    let g = ((t * 2.0) + 2.094).sin() * 0.5 + 0.5;
+    let b = ((t * 2.0) + 4.188).sin() * 0.5 + 0.5;
+
+    for (_, (ui, pulse)) in world.query_mut::<(W<UiRenderer>, W<PulseText>)>() {
+        pulse.handle.set_color(ui, [r, g, b, 1.0]);
     }
 }
 
 fn main() {
-    let mut world = ecs::World::new();
+    let mut world = World::new();
 
     world.spawn((Camera::new_orthographic(320.0, 180.0),));
 
     let mut ui = UiRenderer::new(CanvasSpace::Screen);
-    ui_builder(&mut ui);
-    world.spawn((ui,));
+    let pulse = ui_builder(&mut ui);
+
+    if let Some(handle) = pulse {
+        world.spawn((ui, PulseText { handle }));
+    } else {
+        world.spawn((ui,));
+    }
 
     let mut ui_w = UiRenderer::new(CanvasSpace::World);
     ui_builder(&mut ui_w);
