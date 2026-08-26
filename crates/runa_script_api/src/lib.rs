@@ -2,7 +2,7 @@
 //!
 //! Defines [`ScriptType`] (a compile-time registration record for a scriptable
 //! Rust type) and the `inventory`-based collection that lets any crate mark its
-//! types as scriptable without creating a dependency back to `runa_scripting`.
+//! types as scriptable without creating a dependency back to `runa_engine::scripting`.
 //!
 //! Also provides math conversions (`glam` <-> Luau tables) and re-exports the
 //! `luau` embedding API so derive-generated code can stay decoupled from the

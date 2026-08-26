@@ -1,5 +1,5 @@
 {
-  "workspace.library": ["../../crates/runa_scripting"],
+  "workspace.library": ["./scripts"],
   "runtime.version": "Lua 5.4",
   "diagnostics.globals": [
     "print",

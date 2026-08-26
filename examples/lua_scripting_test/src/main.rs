@@ -1,10 +1,9 @@
-use runa_core::components::SpriteRenderer;
-use runa_core::Vec3;
 use runa_engine::app::{RunaApp, RunaWindowConfig};
 use runa_engine::asset::load_image;
-use runa_engine::core::components::{Camera, Transform};
+use runa_engine::core::components::{Camera, SpriteRenderer, Transform};
+use runa_engine::core::Vec3;
 use runa_engine::ecs::World;
-use runa_scripting::{load_script, write_luau_types};
+use runa_engine::scripting::{load_script, write_luau_types};
 
 fn main() {
     // Emit the auto-generated Luau type definitions (`scripts/runa.luau`) so

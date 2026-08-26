@@ -119,7 +119,7 @@ pub fn scene(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// - a **merge** function that writes only the scripted fields back into the
 ///   live component (so engine-managed fields like interpolation bookkeeping
 ///   or GPU handles — marked `#[script(skip)]` — are preserved),
-/// - and an `inventory` registration so `runa_scripting` can wire it up at
+/// - and an `inventory` registration so `runa_engine::scripting` can wire it up at
 ///   runtime (component globals + `GetComponent`/`HasComponent`) and emit a
 ///   `.d.luau` for the editor — with no manual maintenance.
 ///

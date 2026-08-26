@@ -1374,11 +1374,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 name = "lua_scripting_test"
 version = "0.8.0-pre.3"
 dependencies = [
- "runa_core",
- "runa_ecs",
  "runa_engine",
- "runa_macros",
- "runa_scripting",
 ]
 
 [[package]]
@@ -2417,11 +2413,13 @@ version = "0.8.0-pre.3"
 dependencies = [
  "glam",
  "inventory",
+ "luau",
  "runa_app",
  "runa_asset",
  "runa_core",
  "runa_ecs",
  "runa_macros",
+ "runa_script_api",
  "serde",
  "serde_json",
 ]
@@ -2466,20 +2464,6 @@ dependencies = [
  "inventory",
  "luau",
  "runa_ecs",
-]
-
-[[package]]
-name = "runa_scripting"
-version = "0.8.0-pre.3"
-dependencies = [
- "glam",
- "luau",
- "runa_core",
- "runa_ecs",
- "runa_engine",
- "runa_macros",
- "runa_script_api",
- "winit",
 ]
 
 [[package]]

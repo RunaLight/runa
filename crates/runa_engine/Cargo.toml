@@ -11,6 +11,8 @@ runa_ecs = { path = "../runa_ecs" }
 runa_app = { path = "../runa_app" }
 runa_core = { path = "../runa_core" }
 runa_asset = { path = "../runa_asset" }
+runa_script_api = { path = "../runa_script_api" }
+luau = "0.733"
 
 inventory = "0.3"
 serde = { workspace = true }

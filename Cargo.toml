@@ -11,7 +11,6 @@ members = [
     # "crates/runa_editor",
     "crates/runa_render_api",
     "crates/runa_script_api",
-    "crates/runa_scripting",
     "examples/command_queue_test",
     "examples/lua_scripting_test",
     "examples/sandbox",

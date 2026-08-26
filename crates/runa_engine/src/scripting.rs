@@ -52,9 +52,13 @@ macro_rules! load_script {
     ($path:expr) => {{
         let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.push($path);
-        $crate::ScriptComponent::new(p.to_str().unwrap_or($path))
+        $crate::scripting::ScriptComponent::new(p.to_str().unwrap_or($path))
     }};
 }
+
+// Re-export the `#[macro_export]` macro into this module so it is reachable as
+// `runa_engine::scripting::load_script` as well as the crate-root `runa_engine::load_script`.
+pub use crate::load_script;
 
 /// A scripted entity. Holds its own Luau VM instance and reloads the `.luau`
 /// source when the file on disk changes (hot reload).
@@ -451,7 +455,7 @@ pub fn write_luau_types(path: &std::path::Path) {
     let _ = fs::write(path, &s);
 }
 
-#[system(Update)]
+#[system(Update, "crate")]
 pub fn script_system(world: &mut World) {
     let dt = world.get_resource::<Time>().delta as f64;
 
@@ -767,8 +771,8 @@ mod tests {
 
     #[test]
     fn lua_input_api() {
-        use winit::event::MouseButton;
-        use winit::keyboard::KeyCode;
+        use runa_core::KeyCode;
+        use runa_core::MouseButton;
 
         let mut path = std::env::temp_dir();
         path.push("runa_test_input_api.luau");
