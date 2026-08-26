@@ -201,6 +201,8 @@ pub enum RenderCommands {
         uv_rect: [f32; 4],
         order: i32,
         replace_color: bool,
+        flip_x: bool,
+        flip_y: bool,
     },
     Text {
         text: String,

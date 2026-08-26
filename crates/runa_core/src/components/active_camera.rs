@@ -1,3 +1,5 @@
+use runa_macros::Scriptable;
+
 /// Active camera marker component
 ///
 /// Attach this to an object to make it the active camera.
@@ -9,5 +11,5 @@
 /// object.add_component(Camera3D { ... });
 /// object.add_component(ActiveCamera);
 /// ```
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, Scriptable)]
 pub struct ActiveCamera;

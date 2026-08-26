@@ -9,6 +9,8 @@ authors.workspace = true
 runa_asset = { path = "../runa_asset" }
 runa_ecs = { path = "../runa_ecs" }
 runa_macros = { path = "../runa_macros" }
+runa_script_api = { path = "../runa_script_api" }
+inventory = "0.3"
 runa_render = { path = "../runa_render" }
 runa_render_api = { path = "../runa_render_api" }
 

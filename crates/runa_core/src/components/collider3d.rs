@@ -1,4 +1,5 @@
 use glam::{Quat, Vec3};
+use runa_macros::Scriptable;
 
 use crate::components::Transform;
 use crate::resources::event::Event;
@@ -10,10 +11,19 @@ pub enum Collider3DShape {
     Sphere { radius: f32 },
 }
 
+impl Default for Collider3DShape {
+    fn default() -> Self {
+        Self::Box {
+            half_size: Vec3::ZERO,
+        }
+    }
+}
+
 /// 3D collider attached to an entity. World position/orientation comes from
 /// `Transform`; this only holds the local shape + flags.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Scriptable)]
 pub struct Collider3D {
+    #[script(skip)]
     pub shape: Collider3DShape,
     pub offset: Vec3,
     pub enabled: bool,

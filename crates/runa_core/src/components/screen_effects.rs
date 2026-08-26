@@ -1,7 +1,9 @@
+use runa_macros::Scriptable;
 use runa_render_api::{ScreenEffectData, ScreenEffectFlags};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Scriptable)]
 pub struct ScreenEffects {
+    #[script(skip)]
     pub enabled: ScreenEffectFlags,
     pub fade_color: [f32; 4],
     pub vignette_strength: f32,

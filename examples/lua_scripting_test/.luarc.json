@@ -1,0 +1,11 @@
+{
+  "workspace.library": ["../../crates/runa_scripting"],
+  "runtime.version": "Lua 5.4",
+  "diagnostics.globals": [
+    "print",
+    "update",
+    "start",
+    "Transform",
+    "SpriteRenderer"
+  ]
+}

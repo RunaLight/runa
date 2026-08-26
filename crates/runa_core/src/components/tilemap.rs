@@ -1,10 +1,11 @@
 use glam::{IVec2, USizeVec2, Vec3};
 use runa_asset::Handle;
 use runa_asset::TextureAsset;
+use runa_macros::Scriptable;
 use std::sync::Arc;
 
 /// Rectangle used for UV coordinates and placement.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Scriptable)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -24,10 +25,11 @@ impl Rect {
 }
 
 /// A single tile in a tilemap.
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
 pub struct Tile {
+    #[script(skip)]
     pub texture: Option<Arc<TextureAsset>>, // None means an empty tile
-    pub uv_rect: Rect,                      // Part of the texture atlas
+    pub uv_rect: Rect, // Part of the texture atlas
     pub flip_x: bool,
     pub flip_y: bool,
 }
@@ -53,7 +55,7 @@ impl Tile {
 }
 
 /// A single tilemap layer.
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
 pub struct TilemapLayer {
     pub name: String,
     pub width: u32,
@@ -91,7 +93,7 @@ impl TilemapLayer {
 }
 
 /// Tilemap data component.
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
 pub struct Tilemap {
     /// Map size in tiles.
     pub width: u32,
@@ -99,17 +101,21 @@ pub struct Tilemap {
 
     /// Tile size in world units.
     /// Example: 16 pixels at pixels_per_unit=16 -> tile_size=1.0
+    #[script(skip)]
     pub tile_size: USizeVec2,
+    #[script(skip)]
     pub offset: IVec2,
 
     /// Layers ordered from back to front.
     pub layers: Vec<TilemapLayer>,
 
+    #[script(skip)]
     pub atlas: Option<TilemapAtlas>,
     pub selected_tile: u32,
     pub pixels_per_unit: f32,
 
     /// Incremented on every tile mutation for dirty tracking.
+    #[script(skip)]
     pub generation: u64,
 }
 
@@ -280,7 +286,7 @@ impl Tilemap {
 }
 
 /// Rendering Component for Tilemap
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
 pub struct TilemapRenderer;
 
 impl TilemapRenderer {

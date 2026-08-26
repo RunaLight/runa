@@ -1,4 +1,5 @@
 use glam::Vec2;
+use runa_macros::Scriptable;
 
 use crate::collision2d::rect_corners;
 use crate::components::Transform;
@@ -11,10 +12,19 @@ pub enum Collider2DShape {
     Circle { radius: f32 },
 }
 
+impl Default for Collider2DShape {
+    fn default() -> Self {
+        Self::Rect {
+            half_size: Vec2::ZERO,
+        }
+    }
+}
+
 /// 2D collider attached to an entity. The world-space position/orientation
 /// comes from `Transform`; this struct only holds the local shape + flags.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Scriptable)]
 pub struct Collider2D {
+    #[script(skip)]
     pub shape: Collider2DShape,
     pub offset: Vec2,
     pub enabled: bool,

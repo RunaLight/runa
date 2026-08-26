@@ -1,11 +1,13 @@
 use crate::audio::SoundId;
 use runa_asset::AudioAsset;
+use runa_macros::Scriptable;
 use std::sync::Arc;
 
 /// Audio source component — attaches audio to a game object
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
 pub struct AudioSource {
     /// Cached audio asset (decoded PCM samples)
+    #[script(skip)]
     pub audio_asset: Option<Arc<AudioAsset>>,
     /// Relative asset path used to reload this source in editor/runtime
     pub source_path: Option<String>,
@@ -22,6 +24,7 @@ pub struct AudioSource {
     /// Request stop on next world update
     pub stop_requested: bool,
     /// Current sound ID if playing
+    #[script(skip)]
     pub sound_id: Option<SoundId>,
     /// Minimum distance for sound attenuation (3D sound)
     pub min_distance: f32,

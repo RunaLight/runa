@@ -1,0 +1,18 @@
+[package]
+name = "runa_scripting"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+runa_core = { path = "../runa_core" }
+runa_ecs = { path = "../runa_ecs" }
+runa_engine = { path = "../runa_engine" }
+runa_macros = { path = "../runa_macros" }
+runa_script_api = { path = "../runa_script_api" }
+luau = "0.733"
+glam = { workspace = true }
+
+[dev-dependencies]
+winit = { version = "0.30.13" }

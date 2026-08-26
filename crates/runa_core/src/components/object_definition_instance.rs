@@ -1,4 +1,6 @@
-#[derive(Clone, Debug)]
+use runa_macros::Scriptable;
+
+#[derive(Clone, Debug, Scriptable)]
 pub struct ObjectDefinitionInstance {
     pub object_id: String,
 }

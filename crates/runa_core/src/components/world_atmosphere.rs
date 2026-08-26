@@ -1,4 +1,5 @@
 use crate::Color;
+use runa_macros::Scriptable;
 
 #[derive(Clone, Copy, Debug)]
 pub enum BackgroundMode {
@@ -28,11 +29,12 @@ impl Default for BackgroundMode {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Scriptable)]
 pub struct WorldAtmosphere {
     pub ambient_color: Color,
     pub ambient_intensity: f32,
     pub background_intensity: f32,
+    #[script(skip)]
     pub background: BackgroundMode,
 }
 

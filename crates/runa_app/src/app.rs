@@ -109,6 +109,8 @@ impl<'window> App<'window> {
                     sprite.uv_rect,
                     order,
                     sprite.replace_color,
+                    sprite.flip_x,
+                    sprite.flip_y,
                 );
             }
         }

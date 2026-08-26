@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, Default)]
+use runa_macros::Scriptable;
+
+#[derive(Clone, Copy, Debug, Default, Scriptable)]
 pub struct Sorting {
     pub order: i32,
     pub y_sort: bool,

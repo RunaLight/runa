@@ -756,6 +756,8 @@ impl<'window> Renderer<'window> {
                     uv_rect,
                     order,
                     replace_color,
+                    flip_x,
+                    flip_y,
                 } => {
                     let tex_width = texture.width as f32;
                     let tex_height = texture.height as f32;
@@ -763,7 +765,9 @@ impl<'window> Renderer<'window> {
                     let world_scale_x = scale.x * ((tex_width * uv_rect[2]) / pixels_per_unit);
                     let world_scale_y = scale.y * ((tex_height * uv_rect[3]) / pixels_per_unit);
 
-                    let flip = if *replace_color { 4 } else { 0 };
+                    let flip = (if *replace_color { 4 } else { 0 })
+                        | (*flip_x as u32)
+                        | ((*flip_y as u32) << 1);
                     let instance = InstanceData {
                         position: [position.x, position.y, position.z],
                         rotation: rotation.z,

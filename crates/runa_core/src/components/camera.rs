@@ -1,18 +1,20 @@
 use glam::{Mat4, Vec2, Vec3};
+use runa_macros::Scriptable;
 
 use super::Transform;
 
 /// Camera projection type.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ProjectionType {
     /// Orthographic projection for 2D rendering.
+    #[default]
     Orthographic,
     /// Perspective projection for 3D rendering.
     Perspective,
 }
 
 /// A shared camera component with 2D and 3D support.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Scriptable)]
 pub struct Camera {
     /// Camera position in world space.
     pub position: Vec3,
@@ -22,6 +24,7 @@ pub struct Camera {
     pub up: Vec3,
 
     /// Projection mode.
+    #[script(skip)]
     pub projection: ProjectionType,
 
     // Orthographic projection parameters (2D)
@@ -37,6 +40,7 @@ pub struct Camera {
     pub fov: f32,
 
     /// Render viewport size.
+    #[script(skip)]
     pub viewport_size: (u32, u32),
 }
 

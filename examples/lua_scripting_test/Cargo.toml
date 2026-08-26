@@ -1,0 +1,13 @@
+[package]
+name = "lua_scripting_test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+runa_engine = { path = "../../crates/runa_engine" }
+runa_core = { path = "../../crates/runa_core" }
+runa_ecs = { path = "../../crates/runa_ecs" }
+runa_scripting = { path = "../../crates/runa_scripting" }
+runa_macros = { path = "../../crates/runa_macros" }

@@ -1,6 +1,7 @@
 use glam::Vec2;
+use runa_macros::Scriptable;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Scriptable)]
 pub struct PhysicsCollision {
     pub size: Vec2, // половина размера (extents)
     pub enabled: bool,
