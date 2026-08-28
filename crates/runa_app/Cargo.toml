@@ -11,5 +11,6 @@ runa_ecs = { path = "../runa_ecs" }
 runa_render = { path = "../runa_render" }
 runa_render_api = { path = "../runa_render_api" }
 runa_asset = { path = "../runa_asset" }
+runa_script_api = { path = "../runa_script_api" }
 
 winit.workspace = true

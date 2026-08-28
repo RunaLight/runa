@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
     parse::Parse, parse::ParseStream, parse_macro_input, Data, DeriveInput, Expr, Field, Fields,
-    Ident, ItemFn, ItemStruct, LitStr, Token, Type,
+    FnArg, Ident, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Token, Type,
 };
 
 /// `#[system(Stage)]` / `#[system(Stage, "crate")]` argument.
@@ -27,6 +27,7 @@ impl Parse for SysArg {
 #[proc_macro_attribute]
 pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
+    let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;
     let name = &sig.ident;
@@ -37,7 +38,7 @@ pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|_| "::runa_engine".parse().unwrap());
 
     TokenStream::from(quote! {
-        #sig #block
+        #vis #sig #block
 
         #crate_path_ts::ecs::inventory::submit! {
             #crate_path_ts::ecs::SystemDescriptor {
@@ -123,14 +124,73 @@ pub fn scene(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   runtime (component globals + `GetComponent`/`HasComponent`) and emit a
 ///   `.d.luau` for the editor — with no manual maintenance.
 ///
-/// Field attribute:
+/// Field/struct attributes:
 /// - `#[script(skip)]` — exclude the field from scripting (e.g. `OnceLock`
 ///   handles, interpolation state). It is left untouched on apply-back.
+/// - `#[script(addable)]` — (default) opt into runtime `AddComponent`/`RemoveComponent`.
+///   Requires the component to be `Default`. Components that are not `Default` should
+///   pass `#[script(not_addable)]`.
+/// - `#[script(not_addable)]` — opt out of runtime `AddComponent`/`RemoveComponent`
+///   (required when the component is not `Default`).
+/// - `#[script(crate = "...")]` — point generated code at the public entry-point crate
+///   (e.g. `runa_engine`); external game crates can usually omit this.
 #[proc_macro_derive(Scriptable, attributes(script))]
 pub fn scriptable_derive(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
     let ident = &input.ident;
     let name_str = ident.to_string();
+
+    // `#[script(addable)]` opts the type into runtime `AddComponent`/`RemoveComponent`.
+    // It is now the DEFAULT (so a plain `#[derive(Scriptable)]` is already addable in
+    // Lua). Components that are not `Default` cannot be insert-or-created by
+    // `AddComponent`, so they should opt out with `#[script(not_addable)]`.
+    //
+    // `#[script(crate = "...")]` points the generated code at the public entry-point
+    // crate (e.g. `runa_engine`) instead of the internal `runa_script_api`/`runa_ecs`.
+    // External game crates depend only on `runa_engine` and can just write
+    // `#[script(addable)]` (or nothing) — the default already resolves to
+    // `runa_engine::scripting_api` / `runa_engine::ecs`.
+    let mut addable = true;
+    let mut crate_path: Option<String> = None;
+    for attr in &input.attrs {
+        if attr.path().is_ident("script") {
+            let _ = attr.parse_nested_meta(|m| {
+                if m.path.is_ident("addable") {
+                    addable = true;
+                } else if m.path.is_ident("not_addable") {
+                    addable = false;
+                } else if m.path.is_ident("crate") {
+                    let s: LitStr = m.value()?.parse()?;
+                    crate_path = Some(s.value());
+                }
+                Ok(())
+            });
+        }
+    }
+
+    // Resolve the scripting-API / ECS crate paths used in the generated code.
+    //
+    // - No `#[script(crate = ...)]`: default to the public entry-point crate
+    //   (`runa_engine::scripting_api` / `runa_engine::ecs`) so external game crates
+    //   that depend only on `runa_engine` can write `#[script(addable)]` with no
+    //   extra configuration.
+    // - `crate = "runa_engine"` (or any path containing it): use the re-exported
+    //   `scripting_api` / `ecs` submodules of that crate.
+    // - Internal crates (e.g. `runa_core`) pass the low-level crates directly:
+    //   `#[script(crate = "::runa_script_api")]` → `::runa_script_api` (with
+    //   `::runa_ecs` for the ECS side).
+    let (api_path, ecs_path): (proc_macro2::TokenStream, proc_macro2::TokenStream) =
+        match crate_path.as_deref() {
+            None => (
+                "::runa_engine::scripting_api".parse().unwrap(),
+                "::runa_engine::ecs".parse().unwrap(),
+            ),
+            Some(c) if c.contains("runa_engine") => (
+                format!("{c}::scripting_api").parse().unwrap(),
+                format!("{c}::ecs").parse().unwrap(),
+            ),
+            Some(c) => (c.parse().unwrap(), "::runa_ecs".parse().unwrap()),
+        };
 
     let named = match &input.data {
         Data::Struct(s) => match &s.fields {
@@ -184,44 +244,44 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
                         let __arr = self.#fname;
                         let __at = lua.create_table()?;
                         for (__i, __val) in __arr.iter().enumerate() {
-                            __at.set(__i + 1, ::runa_script_api::luau::IntoLua::into_lua(__val.clone(), lua)?)?;
+                            __at.set(__i + 1, #api_path::luau::IntoLua::into_lua(__val.clone(), lua)?)?;
                         }
-                        ::runa_script_api::luau::Value::Table(__at)
+                        #api_path::luau::Value::Table(__at)
                     }
                 };
                 let get = quote! {
                     {
-                        let __av: ::runa_script_api::luau::Value = table.get(#fstr)?;
+                        let __av: #api_path::luau::Value = table.get(#fstr)?;
                         match __av {
-                            ::runa_script_api::luau::Value::Table(__at) => {
+                            #api_path::luau::Value::Table(__at) => {
                                 let mut __v = ::std::vec::Vec::new();
                                 for __i in 0..#n {
-                                    __v.push(::runa_script_api::luau::FromLua::from_lua(__at.get(__i + 1)?, lua)?);
+                                    __v.push(#api_path::luau::FromLua::from_lua(__at.get(__i + 1)?, lua)?);
                                 }
                                 match <_ as ::std::convert::TryInto<[_; #n]>>::try_into(__v) {
                                     Ok(__a) => __a,
-                                    Err(_) => return Err(::runa_script_api::luau::Error::runtime(concat!("scriptable: bad array ", #fstr))),
+                                    Err(_) => return Err(#api_path::luau::Error::runtime(concat!("scriptable: bad array ", #fstr))),
                                 }
                             }
-                            _ => return Err(::runa_script_api::luau::Error::runtime(concat!("scriptable: expected table for ", #fstr))),
+                            _ => return Err(#api_path::luau::Error::runtime(concat!("scriptable: expected table for ", #fstr))),
                         }
                     }
                 };
                 let merge = quote! {
                     {
-                        let __av: ::runa_script_api::luau::Value = table.get(#fstr)?;
+                        let __av: #api_path::luau::Value = table.get(#fstr)?;
                         match __av {
-                            ::runa_script_api::luau::Value::Table(__at) => {
+                            #api_path::luau::Value::Table(__at) => {
                                 let mut __v = ::std::vec::Vec::new();
                                 for __i in 0..#n {
                                     __v.push(lua.unpack::<#elem>(__at.get(__i + 1)?)?);
                                 }
                                 match <_ as ::std::convert::TryInto<[_; #n]>>::try_into(__v) {
                                     Ok(__a) => __a,
-                                    Err(_) => return Err(::runa_script_api::luau::Error::runtime(concat!("scriptable: bad array ", #fstr))),
+                                    Err(_) => return Err(#api_path::luau::Error::runtime(concat!("scriptable: bad array ", #fstr))),
                                 }
                             }
-                            _ => return Err(::runa_script_api::luau::Error::runtime(concat!("scriptable: expected table for ", #fstr))),
+                            _ => return Err(#api_path::luau::Error::runtime(concat!("scriptable: expected table for ", #fstr))),
                         }
                     }
                 };
@@ -232,13 +292,13 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
                     let to = math_to_ident(kind);
                     let from = math_from_ident(kind);
                     let set = quote! {
-                        ::runa_script_api::luau::Value::Table(::runa_script_api::math::#to(lua, self.#fname)?)
+                        #api_path::luau::Value::Table(#api_path::math::#to(lua, self.#fname)?)
                     };
                     let get = quote! {
                         {
-                            let __v: ::runa_script_api::luau::Value = table.get(#fstr)?;
+                            let __v: #api_path::luau::Value = table.get(#fstr)?;
                             match __v {
-                                ::runa_script_api::luau::Value::Table(__t) => ::runa_script_api::math::#from(&__t),
+                                #api_path::luau::Value::Table(__t) => #api_path::math::#from(&__t),
                                 _ => ::std::default::Default::default(),
                             }
                         }
@@ -247,10 +307,10 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
                 }
                 None => {
                     let set = quote! {
-                        ::runa_script_api::luau::IntoLua::into_lua(self.#fname, lua)?
+                        #api_path::luau::IntoLua::into_lua(self.#fname, lua)?
                     };
                     let get = quote! {
-                        ::runa_script_api::luau::FromLua::from_lua({ let __v: ::runa_script_api::luau::Value = table.get(#fstr)?; __v }, lua)?
+                        #api_path::luau::FromLua::from_lua({ let __v: #api_path::luau::Value = table.get(#fstr)?; __v }, lua)?
                     };
                     let merge = quote! {
                         lua.unpack::<#fty>(table.get(#fstr)?)?
@@ -270,8 +330,8 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
     } else {
         quote! {
             let table = match value {
-                ::runa_script_api::luau::Value::Table(t) => t,
-                _ => return Err(::runa_script_api::luau::Error::runtime(concat!("scriptable: expected table for ", #name_str))),
+                #api_path::luau::Value::Table(t) => t,
+                _ => return Err(#api_path::luau::Error::runtime(concat!("scriptable: expected table for ", #name_str))),
             };
             Ok(Self {
                 #(#get_stmts)*
@@ -283,52 +343,93 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
     let type_def = format!("export type {} = {{\n{}}}", name_str, def_body);
     let type_def_lit = proc_macro2::Literal::string(&type_def);
 
+    let add_fn: proc_macro2::TokenStream = if addable {
+        quote! {
+            fn __scriptable_add_luau<'lua>(lua: #api_path::luau::LuaRef<'lua>, v: #api_path::luau::Value<'lua>, world: &mut #ecs_path::World, e: #ecs_path::Entity)
+            where #ident: Default {
+                if world.get_mut::<#ident>(e).is_some() {
+                    __scriptable_from_luau(lua, v, world, e);
+                } else {
+                    let mut __c = #ident::default();
+                    if let #api_path::luau::Value::Table(__t) = v {
+                        let _ = __scriptable_merge_luau(&mut __c, lua, &__t);
+                    }
+                    world.add_component(e, __c);
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+    let addable_arm: proc_macro2::TokenStream = if addable {
+        quote! { __scriptable_add_luau }
+    } else {
+        quote! { __scriptable_noop_add }
+    };
+    let removeable_arm: proc_macro2::TokenStream = quote! { __scriptable_remove_luau };
+
     let out = quote! {
         const _: () = {
-            impl<'lua> ::runa_script_api::luau::IntoLua<'lua> for #ident {
-                fn into_lua(self, lua: ::runa_script_api::luau::LuaRef<'lua>) -> ::runa_script_api::luau::Result<::runa_script_api::luau::Value<'lua>> {
+            impl<'lua> #api_path::luau::IntoLua<'lua> for #ident {
+                fn into_lua(self, lua: #api_path::luau::LuaRef<'lua>) -> #api_path::luau::Result<#api_path::luau::Value<'lua>> {
                     let table = lua.create_table()?;
                     #(#set_stmts)*
-                    Ok(::runa_script_api::luau::Value::Table(table))
+                    Ok(#api_path::luau::Value::Table(table))
                 }
             }
 
-            impl<'lua> ::runa_script_api::luau::FromLua<'lua> for #ident {
-                fn from_lua(value: ::runa_script_api::luau::Value<'lua>, lua: ::runa_script_api::luau::LuaRef<'lua>) -> ::runa_script_api::luau::Result<Self> {
+            impl<'lua> #api_path::luau::FromLua<'lua> for #ident {
+                fn from_lua(value: #api_path::luau::Value<'lua>, lua: #api_path::luau::LuaRef<'lua>) -> #api_path::luau::Result<Self> {
                     let _ = value;
                     let _ = lua;
                     #scriptable_from_body
                 }
             }
 
-            fn __scriptable_merge_luau<'lua>(c: &mut #ident, lua: &'lua ::runa_script_api::luau::Lua, table: &'lua ::runa_script_api::luau::Table<'lua>) -> ::runa_script_api::luau::Result<()> {
+            fn __scriptable_merge_luau<'lua>(c: &mut #ident, lua: #api_path::luau::LuaRef<'lua>, table: &'lua #api_path::luau::Table<'lua>) -> #api_path::luau::Result<()> {
                 #(#merge_stmts)*
                 Ok(())
             }
 
-            fn __scriptable_to_luau<'lua>(lua: &'lua ::runa_script_api::luau::Lua, world: &::runa_ecs::World, e: ::runa_ecs::Entity) -> Option<::runa_script_api::luau::Table<'lua>> {
+            fn __scriptable_to_luau<'lua>(lua: #api_path::luau::LuaRef<'lua>, world: &#ecs_path::World, e: #ecs_path::Entity) -> Option<#api_path::luau::Table<'lua>> {
                 let __c = world.get::<#ident>(e)?;
                 let __v = lua.pack(::std::clone::Clone::clone(__c)).ok()?;
                 match __v {
-                    ::runa_script_api::luau::Value::Table(__t) => Some(__t),
+                    #api_path::luau::Value::Table(__t) => Some(__t),
                     _ => None,
                 }
             }
 
-            fn __scriptable_from_luau<'lua>(lua: &'lua ::runa_script_api::luau::Lua, v: ::runa_script_api::luau::Value<'lua>, world: &mut ::runa_ecs::World, e: ::runa_ecs::Entity) {
+            fn __scriptable_from_luau<'lua>(lua: #api_path::luau::LuaRef<'lua>, v: #api_path::luau::Value<'lua>, world: &mut #ecs_path::World, e: #ecs_path::Entity) {
                 if let Some(__c) = world.get_mut::<#ident>(e) {
-                    if let ::runa_script_api::luau::Value::Table(__t) = v {
+                    if let #api_path::luau::Value::Table(__t) = v {
                         let _ = __scriptable_merge_luau(__c, lua, &__t);
                     }
                 }
             }
 
-            ::runa_script_api::submit! {
-                ::runa_script_api::ScriptType {
+            fn __scriptable_remove_luau(world: &mut #ecs_path::World, e: #ecs_path::Entity) {
+                world.remove_component::<#ident>(e);
+            }
+
+            #add_fn
+
+            // No-op fallback for types that are not `#[script(addable)]`.
+            fn __scriptable_noop_add<'lua>(
+                _lua: #api_path::luau::LuaRef<'lua>,
+                _v: #api_path::luau::Value<'lua>,
+                _world: &mut #ecs_path::World,
+                _e: #ecs_path::Entity,
+            ) {}
+
+            #api_path::submit! {
+                #api_path::ScriptType {
                     name: #name_str,
                     type_def: #type_def_lit,
                     to_luau: __scriptable_to_luau,
                     from_luau: __scriptable_from_luau,
+                    add: #addable_arm,
+                    remove: #removeable_arm,
                 }
             }
         };
@@ -453,4 +554,120 @@ fn first_two_generics(args: &syn::PathArguments) -> Option<(&Type, &Type)> {
         }
     }
     None
+}
+
+/// `#[script_fn]` / `#[script_fn(crate = "runa_engine")]` — expose a free Rust
+/// function to Luau. After the engine builds a VM, the function is registered on the
+/// `runa` module and as a bare global, so scripts call `runa.my_func(...)` or simply
+/// `my_func(...)`.
+///
+/// Arguments and the return value are converted with `FromLua` / `IntoLua`, so use
+/// conversion-friendly types (`f32`, `f64`, `i32`, `i64`, `bool`, `String`, ...).
+///
+/// Example:
+/// ```ignore
+/// #[script_fn]
+/// fn add(a: f32, b: f32) -> f32 { a + b }
+/// // In Luau: `local r = runa.add(2, 3)`  -> 5
+/// ```
+#[proc_macro_attribute]
+pub fn script_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    let vis = &input.vis;
+    let sig = &input.sig;
+    let block = &input.block;
+    let name = &sig.ident;
+    let name_str = name.to_string();
+
+    // `#[script_fn(crate = "...")]` points the generated glue at the public
+    // entry-point crate (e.g. `runa_engine`); external game crates can omit it.
+    let crate_arg = parse_macro_input!(attr as FnCrateArg);
+    let api_path: proc_macro2::TokenStream = match crate_arg.crate_path.map(|s| s.value()) {
+        None => "::runa_engine::scripting_api".parse().unwrap(),
+        Some(c) if c.contains("runa_engine") => format!("{c}::scripting_api").parse().unwrap(),
+        Some(c) => c.parse().unwrap(),
+    };
+
+    // Collect parameter idents + types (skip `self`).
+    let mut arg_idents: Vec<Ident> = Vec::new();
+    let mut arg_types: Vec<&Type> = Vec::new();
+    for arg in &sig.inputs {
+        if let FnArg::Typed(pt) = arg {
+            let ident = if let Pat::Ident(pi) = &*pt.pat {
+                pi.ident.clone()
+            } else {
+                Ident::new(
+                    &format!("__arg_{}", arg_types.len()),
+                    proc_macro2::Span::call_site(),
+                )
+            };
+            arg_idents.push(ident);
+            arg_types.push(&pt.ty);
+        }
+    }
+
+    let extracts = arg_idents
+        .iter()
+        .zip(arg_types.iter())
+        .enumerate()
+        .map(|(i, (ident, ty))| {
+            quote! {
+                let #ident: #ty = {
+                    let __v = std::mem::replace(
+                        &mut __args[#i],
+                        #api_path::luau::Value::Nil,
+                    );
+                    #api_path::luau::FromLua::from_lua(__v, lua)?
+                };
+            }
+        });
+
+    let ret_expr = match &sig.output {
+        ReturnType::Default => quote! { Ok(#api_path::luau::Value::Nil) },
+        ReturnType::Type(_, ty) if is_unit(ty) => {
+            quote! { let _ = __r; Ok(#api_path::luau::Value::Nil) }
+        }
+        _ => quote! { #api_path::luau::IntoLua::into_lua(__r, lua) },
+    };
+
+    let out = quote! {
+        #vis #sig #block
+
+        #api_path::submit!(#api_path::ScriptFunction {
+            name: #name_str,
+            func: |lua: #api_path::luau::LuaRef<'_>,
+                   __args: #api_path::luau::Variadic<#api_path::luau::Value<'_>>|
+                   -> #api_path::luau::Result<#api_path::luau::Value<'_>> {
+                let mut __args: Vec<#api_path::luau::Value<'_>> =
+                    __args.into_iter().collect();
+                #(#extracts)*
+                let __r = #name(#(#arg_idents),*);
+                #ret_expr
+            }
+        });
+    };
+
+    out.into()
+}
+
+/// `#[script_fn(crate = "...")]` argument.
+struct FnCrateArg {
+    crate_path: Option<LitStr>,
+}
+
+impl Parse for FnCrateArg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut crate_path = None;
+        if input.peek(Token![crate]) {
+            input.parse::<Token![crate]>()?;
+            input.parse::<Token![=]>()?;
+            crate_path = Some(input.parse::<LitStr>()?);
+        }
+        Ok(FnCrateArg { crate_path })
+    }
+}
+
+/// True for the unit type `()`.
+fn is_unit(ty: &Type) -> bool {
+    matches!(ty, Type::Tuple(t) if t.elems.is_empty())
 }

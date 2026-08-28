@@ -1,5 +1,6 @@
 use glam::{Quat, Vec3};
 use runa_macros::Scriptable;
+use runa_script_api::luau::{FromLua, IntoLua, LuaRef, Result, Table, Value};
 
 use crate::components::Transform;
 use crate::resources::event::Event;
@@ -19,11 +20,59 @@ impl Default for Collider3DShape {
     }
 }
 
+impl<'lua> IntoLua<'lua> for Collider3DShape {
+    fn into_lua(self, lua: LuaRef<'lua>) -> Result<Value<'lua>> {
+        let t = lua.create_table()?;
+        match self {
+            Collider3DShape::Box { half_size } => {
+                t.set("type", "Box")?;
+                let hs = lua.create_table()?;
+                hs.set("x", half_size.x)?;
+                hs.set("y", half_size.y)?;
+                hs.set("z", half_size.z)?;
+                t.set("half_size", hs)?;
+            }
+            Collider3DShape::Sphere { radius } => {
+                t.set("type", "Sphere")?;
+                t.set("radius", radius)?;
+            }
+        }
+        Ok(Value::Table(t))
+    }
+}
+
+impl<'lua> FromLua<'lua> for Collider3DShape {
+    fn from_lua(value: Value<'lua>, lua: LuaRef<'lua>) -> Result<Self> {
+        if let Value::Nil = value {
+            return Ok(Self::default());
+        }
+        let t = Table::from_lua(value, lua)?;
+        let kind: String = t.get("type").unwrap_or_default();
+        match kind.as_str() {
+            "Box" => {
+                let hs =
+                    t.get::<Table>("half_size").unwrap_or_else(|_| lua.create_table().unwrap());
+                let x: f32 = hs.get("x").unwrap_or(0.0);
+                let y: f32 = hs.get("y").unwrap_or(0.0);
+                let z: f32 = hs.get("z").unwrap_or(0.0);
+                Ok(Collider3DShape::Box {
+                    half_size: Vec3::new(x, y, z),
+                })
+            }
+            "Sphere" => {
+                let radius: f32 = t.get("radius").unwrap_or(0.0);
+                Ok(Collider3DShape::Sphere { radius })
+            }
+            _ => Ok(Collider3DShape::default()),
+        }
+    }
+}
+
 /// 3D collider attached to an entity. World position/orientation comes from
 /// `Transform`; this only holds the local shape + flags.
 #[derive(Clone, Copy, Scriptable)]
+#[script(crate = "::runa_script_api")]
 pub struct Collider3D {
-    #[script(skip)]
     pub shape: Collider3DShape,
     pub offset: Vec3,
     pub enabled: bool,

@@ -1,19 +1,25 @@
 #![allow(clippy::wrong_self_convention)]
 #![allow(clippy::needless_lifetimes)]
 
+use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use luau::{Function, Lua, Table, Value};
+use luau::{Function, Lua, Table, Value, Variadic};
 use runa_core::resources::event::{Event, EventBus};
 use runa_core::resources::input::InputState;
 use runa_core::resources::Time;
 use runa_ecs::{Entity, World, R};
 use runa_macros::system;
-use runa_script_api::{iter, ScriptType};
+use runa_script_api::{iter, ScriptFunction, ScriptType};
+
+// `write_luau_types` lives in `runa_script_api` (so `runa_app` can call it without
+// a `runa_engine -> runa_app` cycle); re-export it here so the public path
+// `runa_engine::scripting::write_luau_types` keeps working.
+pub use runa_script_api::write_luau_types;
 
 /// Event emitted by scripts via `ctx.events[#ctx.events + 1] = {...}`.
 #[derive(Debug, Clone)]
@@ -61,45 +67,73 @@ macro_rules! load_script {
 pub use crate::load_script;
 
 /// A scripted entity. Holds its own Luau VM instance and reloads the `.luau`
-/// source when the file on disk changes (hot reload).
+/// sources when any file on disk changes (hot reload). An entity may run several
+/// scripts at once (multi-script), which is how engine constructors compose
+/// behaviour from multiple small Luau files.
 pub struct ScriptComponent {
-    path: PathBuf,
+    scripts: Vec<PathBuf>,
     lua: Rc<Lua>,
-    last_modified: Option<SystemTime>,
+    last_modified: Vec<Option<SystemTime>>,
     started: bool,
 }
 
 impl ScriptComponent {
+    /// Create a scripted entity that runs a single `.luau` file.
     pub fn new(path: &str) -> Self {
+        Self::with_scripts(vec![PathBuf::from(path)])
+    }
+
+    /// Create a scripted entity that runs several `.luau` files (in order).
+    pub fn with_scripts(scripts: Vec<PathBuf>) -> Self {
         let lua = Rc::new(Lua::new().expect("failed to create Luau VM"));
         // Register the `runa` module + component class globals on the VM *before*
         // the script is first loaded, so a top-level `require("runa")` resolves.
         setup_runa_module(&lua);
         Self {
-            path: PathBuf::from(path),
+            scripts,
             lua,
-            last_modified: None,
+            last_modified: Vec::new(),
             started: false,
         }
     }
 
-    /// Re-executes the source if the file changed, redefining `start`/`update`.
-    /// A script may `return { start = start, update = update }` so the engine picks
-    /// up its callbacks from the returned table (and luau-lsp sees them as used);
-    /// otherwise it falls back to the global `start`/`update` functions.
+    /// Re-executes any changed source files, redefining their `start`/`update`
+    /// callbacks. Each script may `return { start = start, update = update }` so the
+    /// engine picks up its callbacks from the returned table (and luau-lsp sees them
+    /// as used); otherwise it falls back to the global `start`/`update` functions.
+    /// All callbacks live in the `__runa_scripts` array on the VM globals, one slot
+    /// per script file, in `scripts` order.
     pub fn reload_if_changed(&mut self) {
-        if let Ok(meta) = fs::metadata(self.path.clone()) {
-            if let Ok(mtime) = meta.modified() {
-                if self.last_modified != Some(mtime) {
-                    if let Ok(src) = fs::read_to_string(self.path.clone()) {
-                        if let (Ok(Value::Table(tbl)), Ok(g)) = (
-                            self.lua.load(src.as_str()).call::<Value>(()),
-                            self.lua.globals(),
-                        ) {
-                            let _ = g.set("__runa_callbacks", tbl);
+        if self.last_modified.len() != self.scripts.len() {
+            self.last_modified = vec![None; self.scripts.len()];
+        }
+        let lua = &self.lua;
+        let g = match lua.globals() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        // Ensure the `__runa_scripts` array exists; reuse it directly so we don't
+        // depend on a round-trip `set`+`get` succeeding.
+        let arr = match g.get::<Table>("__runa_scripts") {
+            Ok(a) => a,
+            Err(_) => {
+                let t = lua.create_table().expect("scripts");
+                let _ = g.set("__runa_scripts", t.try_clone().expect("scripts"));
+                t
+            }
+        };
+        for (i, path) in self.scripts.iter().enumerate() {
+            if let Ok(meta) = fs::metadata(path) {
+                if let Ok(mtime) = meta.modified() {
+                    if self.last_modified[i] != Some(mtime) {
+                        if let Ok(src) = fs::read_to_string(path) {
+                            if let Ok(Value::Table(tbl)) = lua.load(src.as_str()).call::<Value>(())
+                            {
+                                let _ = arr.set((i as i64) + 1, tbl);
+                            }
+                            self.last_modified[i] = Some(mtime);
+                            self.started = false;
                         }
-                        self.last_modified = Some(mtime);
-                        self.started = false;
                     }
                 }
             }
@@ -217,6 +251,167 @@ fn setup_runa_module(lua: &Lua) {
         .expect("length3"),
     );
 
+    // Scalar math helpers on the `runa` module so scripts can call `runa.cos(x)` etc.
+    // (Luau's own `math` library is also available via `math.cos`, etc.)
+    let _ = runa.set("pi", std::f64::consts::PI);
+    let _ = runa.set(
+        "cos",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.cos()) }))
+            .expect("cos"),
+    );
+    let _ = runa.set(
+        "sin",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.sin()) }))
+            .expect("sin"),
+    );
+    let _ = runa.set(
+        "tan",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.tan()) }))
+            .expect("tan"),
+    );
+    let _ = runa.set(
+        "atan2",
+        lua.create_function(luau::callback!(|_lua, y: f64, x: f64| { Ok(y.atan2(x)) }))
+            .expect("atan2"),
+    );
+    let _ = runa.set(
+        "sqrt",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.sqrt()) }))
+            .expect("sqrt"),
+    );
+    let _ = runa.set(
+        "abs",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.abs()) }))
+            .expect("abs"),
+    );
+    let _ = runa.set(
+        "floor",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.floor()) }))
+            .expect("floor"),
+    );
+    let _ = runa.set(
+        "ceil",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.ceil()) }))
+            .expect("ceil"),
+    );
+    let _ = runa.set(
+        "round",
+        lua.create_function(luau::callback!(|_lua, x: f64| { Ok(x.round()) }))
+            .expect("round"),
+    );
+    let _ = runa.set(
+        "sign",
+        lua.create_function(luau::callback!(|_lua, x: f64| {
+            Ok(if x > 0.0 {
+                1.0
+            } else if x < 0.0 {
+                -1.0
+            } else {
+                0.0
+            })
+        }))
+        .expect("sign"),
+    );
+    let _ = runa.set(
+        "pow",
+        lua.create_function(luau::callback!(|_lua, x: f64, y: f64| { Ok(x.powf(y)) }))
+            .expect("pow"),
+    );
+    let _ = runa.set(
+        "max",
+        lua.create_function(luau::callback!(|_lua, a: f64, b: f64| { Ok(a.max(b)) }))
+            .expect("max"),
+    );
+    let _ = runa.set(
+        "min",
+        lua.create_function(luau::callback!(|_lua, a: f64, b: f64| { Ok(a.min(b)) }))
+            .expect("min"),
+    );
+    let _ = runa.set(
+        "clamp",
+        lua.create_function(luau::callback!(|_lua, x: f64, lo: f64, hi: f64| {
+            Ok(x.max(lo).min(hi))
+        }))
+        .expect("clamp"),
+    );
+    let _ = runa.set(
+        "rad",
+        lua.create_function(luau::callback!(|_lua, x: f64| {
+            Ok(x * std::f64::consts::PI / 180.0)
+        }))
+        .expect("rad"),
+    );
+    let _ = runa.set(
+        "deg",
+        lua.create_function(luau::callback!(|_lua, x: f64| {
+            Ok(x * 180.0 / std::f64::consts::PI)
+        }))
+        .expect("deg"),
+    );
+
+    // Register all `#[script_fn]` functions: both on the `runa` module and as bare
+    // globals, so scripts can call `runa.my_func(...)` or `my_func(...)`.
+    for f in iter::<ScriptFunction>() {
+        let func = f.func;
+        let lf = match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
+            func(lua, args)
+        })) {
+            Ok(lf) => lf,
+            Err(_) => continue,
+        };
+        let lf_global = match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
+            func(lua, args)
+        })) {
+            Ok(lf) => lf,
+            Err(_) => continue,
+        };
+        let _ = runa.set(f.name, lf);
+        let _ = globals.set(f.name, lf_global);
+    }
+
+    // GDScript-style convenience constructors so Luau scripts can build sprite data
+    // ergonomically. Each returns a plain table matching the corresponding Rust
+    // struct's field names, ready to pass to `ctx:AddComponent` / assign to a field.
+    let _ = runa.set(
+        "sprite_sheet",
+        lua.create_function(luau::callback!(|lua, columns: u32, rows: u32| {
+            let t = lua.create_table()?;
+            t.set("columns", columns)?;
+            t.set("rows", rows)?;
+            Ok(t)
+        }))
+        .expect("sprite_sheet"),
+    );
+    let _ = runa.set(
+        "sprite_clip",
+        lua.create_function(luau::callback!(
+            |lua,
+             name: String,
+             start_frame: u32,
+             end_frame: u32,
+             fps: f32,
+             looping: bool| {
+                let t = lua.create_table()?;
+                t.set("name", name)?;
+                t.set("start_frame", start_frame)?;
+                t.set("end_frame", end_frame)?;
+                t.set("fps", fps)?;
+                t.set("looping", looping)?;
+                Ok(t)
+            }
+        ))
+        .expect("sprite_clip"),
+    );
+    let _ = runa.set(
+        "sprite",
+        lua.create_function(luau::callback!(|lua, path: String| {
+            let t = lua.create_table()?;
+            t.set("texture_path", path)?;
+            Ok(t)
+        }))
+        .expect("sprite"),
+    );
+
     // Cache the module table so a (custom) `require("runa")` can return it at runtime.
     let _ = globals.set("__runa_module", runa);
 
@@ -244,216 +439,6 @@ fn setup_runa_module(lua: &Lua) {
 /// All winit `KeyCode` variant names, in the exact form produced by
 /// `format!("{:?}", key_code)`. Centralized here so the Luau `KeyCode` union and
 /// `ScriptInput` type are generated automatically — no hand-written list in Lua.
-fn keycode_names() -> &'static [&'static str] {
-    &[
-        "KeyA",
-        "KeyB",
-        "KeyC",
-        "KeyD",
-        "KeyE",
-        "KeyF",
-        "KeyG",
-        "KeyH",
-        "KeyI",
-        "KeyJ",
-        "KeyK",
-        "KeyL",
-        "KeyM",
-        "KeyN",
-        "KeyO",
-        "KeyP",
-        "KeyQ",
-        "KeyR",
-        "KeyS",
-        "KeyT",
-        "KeyU",
-        "KeyV",
-        "KeyW",
-        "KeyX",
-        "KeyY",
-        "KeyZ",
-        "Digit0",
-        "Digit1",
-        "Digit2",
-        "Digit3",
-        "Digit4",
-        "Digit5",
-        "Digit6",
-        "Digit7",
-        "Digit8",
-        "Digit9",
-        "ArrowUp",
-        "ArrowDown",
-        "ArrowLeft",
-        "ArrowRight",
-        "Space",
-        "Enter",
-        "Escape",
-        "Tab",
-        "Backspace",
-        "Delete",
-        "Home",
-        "End",
-        "PageUp",
-        "PageDown",
-        "Insert",
-        "ShiftLeft",
-        "ShiftRight",
-        "ControlLeft",
-        "ControlRight",
-        "AltLeft",
-        "AltRight",
-        "Meta",
-        "SuperLeft",
-        "SuperRight",
-        "CapsLock",
-        "F1",
-        "F2",
-        "F3",
-        "F4",
-        "F5",
-        "F6",
-        "F7",
-        "F8",
-        "F9",
-        "F10",
-        "F11",
-        "F12",
-        "Backquote",
-        "Minus",
-        "Equal",
-        "BracketLeft",
-        "BracketRight",
-        "Backslash",
-        "Semicolon",
-        "Quote",
-        "Comma",
-        "Period",
-        "Slash",
-        "Numpad0",
-        "Numpad1",
-        "Numpad2",
-        "Numpad3",
-        "Numpad4",
-        "Numpad5",
-        "Numpad6",
-        "Numpad7",
-        "Numpad8",
-        "Numpad9",
-        "NumpadAdd",
-        "NumpadSubtract",
-        "NumpadMultiply",
-        "NumpadDivide",
-        "NumpadDecimal",
-        "NumpadEnter",
-    ]
-}
-
-/// Regenerates the Luau type-definition module (`runa.luau`) that `luau-lsp`
-/// reads for autocomplete / type checking. Call this from your app's startup
-/// (once) with the directory your `.luau` scripts live in, e.g.
-/// `write_luau_types(Path::new("examples/lua_scripting_test/scripts/runa.luau"))`.
-///
-/// Everything here is derived automatically:
-/// - math types (`Vec3`, `Vec4`, `Vec2`, `Quat`),
-/// - the `KeyCode` union + `ScriptInput` (from `keycode_names`),
-/// - every `#[derive(Scriptable)]` type (collected via `inventory`),
-/// - `ScriptContext` and the component "class" globals (`Transform`, ...).
-pub fn write_luau_types(path: &std::path::Path) {
-    let mut s = String::new();
-    s.push_str("-- THIS FILE IS AUTO-GENERATED. DO NOT EDIT BY HAND.\n");
-    s.push_str(
-        "-- Source of truth: `#[derive(Scriptable)]` registrations (collected via `inventory`)\n",
-    );
-    s.push_str("-- plus built-in math / KeyCode types. Read by `luau-lsp` for type checking.\n\n");
-
-    // Built-in math value types.
-    s.push_str("export type Vec3 = { x: number, y: number, z: number }\n");
-    s.push_str("export type Vec4 = { x: number, y: number, z: number, w: number }\n");
-    s.push_str("export type Vec2 = { x: number, y: number }\n");
-    s.push_str("export type Quat = { x: number, y: number, z: number, w: number }\n\n");
-
-    // KeyCode union + ScriptInput (every key is an optional boolean field).
-    let kc = keycode_names();
-    let union = kc
-        .iter()
-        .map(|k| format!("\"{k}\""))
-        .collect::<Vec<_>>()
-        .join(" | ");
-    s.push_str(&format!("export type KeyCode = {union}\n\n"));
-    s.push_str("export type ScriptInput = {\n");
-    for k in kc {
-        s.push_str(&format!("    {k}: boolean,\n"));
-    }
-    // Mirrored engine state (keyed by `KeyCode` / mouse-button name strings).
-    s.push_str("    keys_just_pressed: { [string]: boolean },\n");
-    s.push_str("    mouse_buttons_pressed: { [string]: boolean },\n");
-    s.push_str("    mouse_buttons_just_pressed: { [string]: boolean },\n");
-    s.push_str("    mouse_position: { x: number, y: number },\n");
-    s.push_str("    mouse_delta: { x: number, y: number },\n");
-    s.push_str("    mouse_wheel_delta: number,\n");
-    // Method API (pass a `KeyCode` string, e.g. `\"KeyA\"`, or a mouse-button name, e.g. `\"Left\"`).
-    s.push_str("    is_key_pressed: (self: ScriptInput, key: KeyCode) -> boolean,\n");
-    s.push_str("    is_key_just_pressed: (self: ScriptInput, key: KeyCode) -> boolean,\n");
-    s.push_str("    is_mouse_pressed: (self: ScriptInput, button: string) -> boolean,\n");
-    s.push_str("    is_mouse_just_pressed: (self: ScriptInput, button: string) -> boolean,\n");
-    s.push_str("    get_mouse_position: (self: ScriptInput) -> { x: number, y: number },\n");
-    s.push_str("}\n\n");
-
-    s.push_str("export type ScriptEvent = { name: string, x: number, y: number }\n\n");
-
-    // Per-component types registered via `#[derive(Scriptable)]`.
-    for t in iter::<ScriptType>() {
-        s.push_str(t.type_def);
-        s.push('\n');
-    }
-    s.push('\n');
-
-    // The script context passed to `start(ctx)` / `update(ctx)`.
-    s.push_str(
-        "export type ScriptContext = {\n    entity: number,\n    dt: number,\n    input: ScriptInput,\n    components: { [string]: any },\n    events: { ScriptEvent },\n    events_in: { ScriptEvent },\n    GetComponent: <T>(self: ScriptContext, component: T) -> T,\n    HasComponent: <T>(self: ScriptContext, component: T) -> boolean,\n}\n\n",
-    );
-
-    // Component "class" values, e.g. `Transform`, so `ctx:GetComponent(Transform)`
-    // is typed. They are emitted as `local Name: Type = nil :: Type` (no `export`)
-    // and exposed through the `return` block below, so a script that does
-    // `local runa = require("runa")` gets `runa.Transform`, `runa.SpriteRenderer`, ...
-    let comps: Vec<&str> = iter::<ScriptType>().map(|t| t.name).collect();
-    for c in &comps {
-        // `local Name: Type = {} :: Type` declares a typed, module-local value.
-        // It is an empty table at runtime in this type-def file (the engine supplies
-        // the real table via the runtime `require`). We initialize it with a `{} :: Type`
-        // cast (empty table and the component type are both tables, so luau-lsp lets
-        // the cast through) to silence `UninitializedLocal` without `?` or `export`.
-        // The `return` below puts `Name` into the module's interface, so
-        // `runa.Name` type-checks for scripts that do `local runa = require("runa")`.
-        s.push_str(&format!("local {c}: {c} = {{}} :: {c};\n"));
-    }
-    s.push('\n');
-
-    // The module must `return` exactly one value, otherwise luau-lsp rejects
-    // `require("runa")` ("Module does not return exactly 1 value"). The values
-    // reference the `local` declarations above (typed, nil in the type-def file —
-    // the engine supplies the real tables via the runtime `require`).
-    s.push_str("return {\n");
-    for c in &comps {
-        s.push_str(&format!("    {c} = {c},\n"));
-    }
-    // Math helpers (real impl is provided at runtime by the engine; the bodies here
-    // only exist so luau-lsp can infer `runa.vec2` / `runa.normalize2` / ... types).
-    s.push_str("    vec2 = function(x: number, y: number): Vec2 return { x = x, y = y } end,\n");
-    s.push_str("    vec3 = function(x: number, y: number, z: number): Vec3 return { x = x, y = y, z = z } end,\n");
-    s.push_str("    normalize2 = function(v: Vec2): Vec2 return v end,\n");
-    s.push_str("    normalize3 = function(v: Vec3): Vec3 return v end,\n");
-    s.push_str("    length2 = function(v: Vec2): number return 0 end,\n");
-    s.push_str("    length3 = function(v: Vec3): number return 0 end,\n");
-    s.push_str("}\n");
-
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let _ = fs::write(path, &s);
-}
 
 #[system(Update, "crate")]
 pub fn script_system(world: &mut World) {
@@ -493,6 +478,11 @@ pub fn script_system(world: &mut World) {
         .query::<R<ScriptComponent>>()
         .map(|(e, _)| e)
         .collect();
+
+    // Deferred spawn/destroy requests, filled by `ctx:Spawn` / `ctx:Destroy` while
+    // scripts run and drained below (outside any Lua callback).
+    let spawn_queue: Rc<RefCell<Vec<PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
+    let destroy_queue: Rc<RefCell<Vec<Entity>>> = Rc::new(RefCell::new(Vec::new()));
 
     // Collect all scriptable types registered via `#[derive(Scriptable)]`.
     let types: Vec<&ScriptType> = iter::<ScriptType>().collect();
@@ -631,7 +621,7 @@ pub fn script_system(world: &mut World) {
 
         let comps = lua.create_table().expect("components");
         for t in &types {
-            if let Some(tbl) = (t.to_luau)(&lua, world, e) {
+            if let Some(tbl) = (t.to_luau)((*lua).as_ref(), world, e) {
                 comps.set(t.name, tbl).ok();
             }
         }
@@ -672,31 +662,109 @@ pub fn script_system(world: &mut World) {
             .expect("HasComponent");
         ctx.set("HasComponent", has_component).ok();
 
-        // Run the script. `ctx` is passed as the argument, so the script sees it.
+        // The world is only borrowed for the duration of `script_system`; these
+        // closures capture a raw pointer to it (valid because they run synchronously
+        // within this call) and are `'static`, as `create_function` requires.
+        let world_ptr = world as *mut World;
+        let types_for_calls: Vec<&'static ScriptType> = types.clone();
+        let add_types = types_for_calls.clone();
+        let rem_types = types_for_calls.clone();
+
+        let add_component = lua
+            .create_function(luau::callback!(
+                move |lua, _self: Table, component: Value, value: Value| {
+                    let world = unsafe { &mut *world_ptr };
+                    if let Some(name) = component_name(&component) {
+                        if let Some(t) = add_types.iter().find(|t| t.name == name) {
+                            (t.add)(lua, value, world, e);
+                        }
+                    }
+                    Ok(())
+                }
+            ))
+            .expect("AddComponent");
+        ctx.set("AddComponent", add_component).ok();
+
+        let remove_component = lua
+            .create_function(luau::callback!(
+                move |_lua, _self: Table, component: Value| {
+                    let world = unsafe { &mut *world_ptr };
+                    if let Some(name) = component_name(&component) {
+                        if let Some(t) = rem_types.iter().find(|t| t.name == name) {
+                            (t.remove)(world, e);
+                        }
+                    }
+                    Ok(())
+                }
+            ))
+            .expect("RemoveComponent");
+        ctx.set("RemoveComponent", remove_component).ok();
+
+        // `Spawn`/`Destroy` are deferred: the Lua callbacks only enqueue requests,
+        // and we process them *after* all scripts have run (outside any Lua
+        // callback). This avoids creating/destroying a Luau VM — or mutating the
+        // world's archetypes — re-entrantly while a script is executing, which
+        // would panic.
+        let spawn_queue = spawn_queue.clone();
+        let spawn_fn = lua
+            .create_function(luau::callback!(move |_lua, _self: Table, path: String| {
+                spawn_queue.borrow_mut().push(PathBuf::from(path));
+                Ok(())
+            }))
+            .expect("Spawn");
+        ctx.set("Spawn", spawn_fn).ok();
+
+        let destroy_queue = destroy_queue.clone();
+        let destroy_fn = lua
+            .create_function(luau::callback!(
+                move |_lua, _self: Table, entity_id: i64| {
+                    destroy_queue.borrow_mut().push(entity_id as u64);
+                    Ok(())
+                }
+            ))
+            .expect("Destroy");
+        ctx.set("Destroy", destroy_fn).ok();
+
+        // Run the scripts. `ctx` is passed as the argument, so the script sees it.
         let should_start = world
             .get::<ScriptComponent>(e)
             .map(|sc| !sc.started)
             .unwrap_or(false);
-        let callbacks: Option<Table> = globals.get::<Table>("__runa_callbacks").ok();
+
+        let scripts_tbl: Table = globals
+            .get("__runa_scripts")
+            .unwrap_or_else(|_| lua.create_table().expect("scripts"));
 
         if should_start {
-            let start_fn: Option<Function> = callbacks
-                .as_ref()
-                .and_then(|c| c.get::<Function>("start").ok())
-                .or_else(|| globals.get::<Function>("start").ok());
-            if let Some(f) = start_fn {
-                let _ = f.call::<()>(&ctx);
+            let mut ran = false;
+            for (_i, callbacks) in scripts_tbl.pairs::<i64, Table>().flatten() {
+                if let Ok(f) = callbacks.get::<Function>("start") {
+                    let _ = f.call::<()>(&ctx);
+                    ran = true;
+                }
+            }
+            // Fall back to a top-level `start` for scripts that don't `return` a
+            // callbacks table (e.g. the unit tests).
+            if !ran {
+                if let Ok(f) = globals.get::<Function>("start") {
+                    let _ = f.call::<()>(&ctx);
+                }
             }
             if let Some(sc) = world.get_mut::<ScriptComponent>(e) {
                 sc.started = true;
             }
         }
-        let update_fn: Option<Function> = callbacks
-            .as_ref()
-            .and_then(|c| c.get::<Function>("update").ok())
-            .or_else(|| globals.get::<Function>("update").ok());
-        if let Some(f) = update_fn {
-            let _ = f.call::<()>(&ctx);
+        let mut ran = false;
+        for (_i, callbacks) in scripts_tbl.pairs::<i64, Table>().flatten() {
+            if let Ok(f) = callbacks.get::<Function>("update") {
+                let _ = f.call::<()>(&ctx);
+                ran = true;
+            }
+        }
+        if !ran {
+            if let Ok(f) = globals.get::<Function>("update") {
+                let _ = f.call::<()>(&ctx);
+            }
         }
 
         // Apply-back using the SAME `ctx` table the script mutated.
@@ -704,7 +772,7 @@ pub fn script_system(world: &mut World) {
         if let Ok(comps) = comps_res {
             for t in &types {
                 if let Ok(tbl) = comps.get::<Table>(t.name) {
-                    (t.from_luau)(&lua, Value::Table(tbl), world, e);
+                    (t.from_luau)((*lua).as_ref(), Value::Table(tbl), world, e);
                 }
             }
         }
@@ -720,6 +788,14 @@ pub fn script_system(world: &mut World) {
             }
         }
     }
+
+    // Drain deferred spawn/destroy requests outside any Lua callback.
+    for path in spawn_queue.borrow_mut().drain(..) {
+        world.spawn((ScriptComponent::new(path.to_str().unwrap_or("")),));
+    }
+    for e in destroy_queue.borrow_mut().drain(..) {
+        world.despawn(e);
+    }
 }
 
 #[cfg(test)]
@@ -727,6 +803,7 @@ mod tests {
     use super::*;
     use runa_core::resources::event::EventBus;
     use runa_core::resources::input::InputState;
+    use runa_macros::Scriptable;
 
     #[test]
     fn lua_moves_transform() {
@@ -1044,5 +1121,166 @@ mod tests {
         p.push("../../examples/lua_scripting_test/scripts/runa.luau");
         write_luau_types(&p);
         println!("wrote {}", p.display());
+    }
+
+    // A user-defined, scriptable, addable component used to exercise runtime
+    // `AddComponent` / `RemoveComponent`. Living inside `runa_engine`, it uses the
+    // internal crate path; `addable` is the default so only `crate` is needed.
+    #[derive(Debug, Clone, Default, Scriptable)]
+    #[script(crate = "::runa_script_api")]
+    struct Health {
+        value: f32,
+    }
+
+    #[test]
+    fn lua_add_and_get_component() {
+        let mut path = std::env::temp_dir();
+        path.push("runa_test_add_component.luau");
+        let src = r#"
+            local runa = require("runa")
+            function start(ctx: runa.ScriptContext)
+                ctx:AddComponent(Health, { value = 42 })
+            end
+            function update(ctx: runa.ScriptContext)
+                local h = ctx:GetComponent(Health)
+                if h then captured = h.value end
+            end
+            return { start = start, update = update }
+        "#;
+        std::fs::write(&path, src).unwrap();
+
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        world.init_resource::<InputState>();
+        world.init_resource::<EventBus>();
+        let e = world.spawn((
+            runa_core::components::Transform::default(),
+            ScriptComponent::new(path.to_str().unwrap()),
+        ));
+
+        // Frame 1: `start` adds the component. Frame 2: `update` can see it.
+        script_system(&mut world);
+        script_system(&mut world);
+
+        let h = world
+            .get::<Health>(e)
+            .expect("Health should have been added");
+        assert!((h.value - 42.0).abs() < 1e-6, "got {}", h.value);
+        let lua = &world.get::<ScriptComponent>(e).unwrap().lua;
+        assert!((lua.globals().expect("g").get::<f64>("captured").unwrap() - 42.0).abs() < 1e-6);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn lua_remove_component() {
+        let mut path = std::env::temp_dir();
+        path.push("runa_test_remove_component.luau");
+        let src = r#"
+            local runa = require("runa")
+            function start(ctx: runa.ScriptContext)
+                ctx:AddComponent(Health, { value = 1 })
+            end
+            function update(ctx: runa.ScriptContext)
+                ctx:RemoveComponent(Health)
+            end
+            return { start = start, update = update }
+        "#;
+        std::fs::write(&path, src).unwrap();
+
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        world.init_resource::<InputState>();
+        world.init_resource::<EventBus>();
+        let e = world.spawn((
+            runa_core::components::Transform::default(),
+            ScriptComponent::new(path.to_str().unwrap()),
+        ));
+
+        // `start` (add) and `update` (remove) both run within the first frame, so
+        // after a single `script_system` call the component should be gone.
+        script_system(&mut world);
+        assert!(
+            world.get::<Health>(e).is_none(),
+            "Health should have been removed"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn lua_spawn_entity() {
+        let mut path = std::env::temp_dir();
+        path.push("runa_test_spawn.luau");
+        let src = r#"
+            local runa = require("runa")
+            function start(ctx: runa.ScriptContext)
+                ctx:Spawn("does_not_exist.luau")
+            end
+            function update(ctx: runa.ScriptContext) end
+            return { start = start, update = update }
+        "#;
+        std::fs::write(&path, src).unwrap();
+
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        world.init_resource::<InputState>();
+        world.init_resource::<EventBus>();
+        let e = world.spawn((
+            runa_core::components::Transform::default(),
+            ScriptComponent::new(path.to_str().unwrap()),
+        ));
+
+        script_system(&mut world);
+
+        let _ = &world.get::<ScriptComponent>(e).unwrap().lua;
+
+        // `ctx:Spawn` is deferred, so after the frame a second entity exists with
+        // its own `ScriptComponent`.
+        assert_eq!(world.query::<R<ScriptComponent>>().count(), 2);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn lua_scalar_math() {
+        let mut path = std::env::temp_dir();
+        path.push("runa_test_scalar_math.luau");
+        let src = r#"
+            local runa = require("runa")
+            function start(ctx: runa.ScriptContext)
+                cos_zero = runa.cos(0)
+                sin_half_pi = runa.sin(runa.pi / 2)
+                sqrt_16 = runa.sqrt(16)
+                clamped = runa.clamp(5, 0, 3)
+                lib_cos = math.cos(0)
+                lib_pi = math.pi
+            end
+            function update(ctx: runa.ScriptContext) end
+            return { start = start, update = update }
+        "#;
+        std::fs::write(&path, src).unwrap();
+
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        world.init_resource::<InputState>();
+        world.init_resource::<EventBus>();
+        let e = world.spawn((
+            runa_core::components::Transform::default(),
+            ScriptComponent::new(path.to_str().unwrap()),
+        ));
+
+        script_system(&mut world);
+
+        let lua = &world.get::<ScriptComponent>(e).unwrap().lua;
+        let g = lua.globals().expect("g");
+        assert!((g.get::<f64>("cos_zero").unwrap() - 1.0).abs() < 1e-9);
+        assert!((g.get::<f64>("sin_half_pi").unwrap() - 1.0).abs() < 1e-9);
+        assert_eq!(g.get::<f64>("sqrt_16").unwrap(), 4.0);
+        assert_eq!(g.get::<f64>("clamped").unwrap(), 3.0);
+        assert!((g.get::<f64>("lib_cos").unwrap() - 1.0).abs() < 1e-9);
+        assert!((g.get::<f64>("lib_pi").unwrap() - std::f64::consts::PI).abs() < 1e-9);
+
+        let _ = std::fs::remove_file(&path);
     }
 }

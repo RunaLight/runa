@@ -4,7 +4,8 @@ use runa_macros::Scriptable;
 use std::sync::Arc;
 
 /// Audio source component — attaches audio to a game object
-#[derive(Clone, Scriptable)]
+#[derive(Clone, Default, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct AudioSource {
     /// Cached audio asset (decoded PCM samples)
     #[script(skip)]

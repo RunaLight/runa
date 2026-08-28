@@ -125,11 +125,44 @@ export type ScriptInput = {
 
 export type ScriptEvent = { name: string, x: number, y: number }
 
-export type Color = {
-    r: number,
-    g: number,
-    b: number,
-    a: number,
+export type Transform = {
+    position: Vec3,
+    rotation: Quat,
+    scale: Vec3,
+}
+export type Collider2D = {
+    offset: Vec2,
+    enabled: boolean,
+    is_trigger: boolean,
+    layer: number,
+}
+export type SpriteAnimationClip = {
+    name: string,
+    start_frame: number,
+    end_frame: number,
+    fps: number,
+    looping: boolean,
+}
+export type SpriteAnimator = {
+    sheet: SpriteSheet,
+    clips: { [number]: SpriteAnimationClip },
+    current_clip: string,
+    current_frame: number,
+    playing: boolean,
+}
+export type SpriteSheet = {
+    columns: number,
+    rows: number,
+}
+export type MeshRenderer = {
+    mesh_path: string,
+    visible: boolean,
+    cast_shadows: boolean,
+    receive_shadows: boolean,
+    color: { [number]: number },
+}
+export type ObjectDefinitionInstance = {
+    object_id: string,
 }
 export type Tile = {
     uv_rect: Rect,
@@ -160,70 +193,7 @@ export type Rect = {
     width: number,
     height: number,
 }
-export type SpriteRenderer = {
-    texture_path: string,
-    pixels_per_unit: number,
-    uv_rect: { [number]: number },
-    color: { [number]: number },
-    replace_color: boolean,
-    flip_x: boolean,
-    flip_y: boolean,
-}
-export type ActiveCamera = {
-}
-export type SpriteAnimationClip = {
-    name: string,
-    start_frame: number,
-    end_frame: number,
-    fps: number,
-    looping: boolean,
-}
-export type SpriteAnimator = {
-    sheet: SpriteSheet,
-    clips: { [number]: SpriteAnimationClip },
-    current_clip: string,
-    current_frame: number,
-    playing: boolean,
-}
-export type SpriteSheet = {
-    columns: number,
-    rows: number,
-}
-export type ObjectDefinitionInstance = {
-    object_id: string,
-}
-export type Sorting = {
-    order: number,
-    y_sort: boolean,
-    y_offset: number,
-}
-export type PhysicsCollision = {
-    size: Vec2,
-    enabled: boolean,
-}
-export type AudioListener = {
-    volume: number,
-    active: boolean,
-    stereo_separation: number,
-}
-export type CursorInteractable = {
-    is_pressed: boolean,
-    is_hovered: boolean,
-    was_hovered: boolean,
-    bounds_size: Vec3,
-}
-export type Camera = {
-    position: Vec3,
-    target: Vec3,
-    up: Vec3,
-    projection: ProjectionType,
-    orthographic_size: Vec2,
-    near: number,
-    far: number,
-    fov: number,
-}
 export type ScreenEffects = {
-    enabled: ScreenEffectFlags,
     fade_color: { [number]: number },
     vignette_strength: number,
     vignette_radius: number,
@@ -233,24 +203,36 @@ export type ScreenEffects = {
     brightness: number,
     contrast: number,
 }
-export type Collider2D = {
-    shape: Collider2DShape,
-    offset: Vec2,
+export type AudioListener = {
+    volume: number,
+    active: boolean,
+    stereo_separation: number,
+}
+export type Sorting = {
+    order: number,
+    y_sort: boolean,
+    y_offset: number,
+}
+export type Camera = {
+    position: Vec3,
+    target: Vec3,
+    up: Vec3,
+    orthographic_size: Vec2,
+    near: number,
+    far: number,
+    fov: number,
+}
+export type CursorInteractable = {
+    is_pressed: boolean,
+    is_hovered: boolean,
+    was_hovered: boolean,
+    bounds_size: Vec3,
+}
+export type Collider3D = {
+    offset: Vec3,
     enabled: boolean,
     is_trigger: boolean,
     layer: number,
-}
-export type MeshRenderer = {
-    mesh_path: string,
-    visible: boolean,
-    cast_shadows: boolean,
-    receive_shadows: boolean,
-    color: { [number]: number },
-}
-export type WorldAtmosphere = {
-    ambient_color: Color,
-    ambient_intensity: number,
-    background_intensity: number,
 }
 export type PointLight = {
     color: Color,
@@ -262,6 +244,22 @@ export type DirectionalLight = {
     direction: Vec3,
     color: Color,
     intensity: number,
+}
+export type WorldAtmosphere = {
+    ambient_color: Color,
+    ambient_intensity: number,
+    background_intensity: number,
+}
+export type SpriteRenderer = {
+    texture_path: string,
+    pixels_per_unit: number,
+    uv_rect: { [number]: number },
+    color: { [number]: number },
+    replace_color: boolean,
+    flip_x: boolean,
+    flip_y: boolean,
+}
+export type ActiveCamera = {
 }
 export type AudioSource = {
     source_path: string,
@@ -275,17 +273,15 @@ export type AudioSource = {
     max_distance: number,
     spatial: boolean,
 }
-export type Transform = {
-    position: Vec3,
-    rotation: Quat,
-    scale: Vec3,
-}
-export type Collider3D = {
-    shape: Collider3DShape,
-    offset: Vec3,
+export type PhysicsCollision = {
+    size: Vec2,
     enabled: boolean,
-    is_trigger: boolean,
-    layer: number,
+}
+export type Color = {
+    r: number,
+    g: number,
+    b: number,
+    a: number,
 }
 export type Speed = {
     value: number,
@@ -306,61 +302,61 @@ export type ScriptContext = {
     Destroy: (self: ScriptContext, entity: number) -> (),
 }
 
-local Color: Color = {} :: Color;
+local Transform: Transform = {} :: Transform;
+local Collider2D: Collider2D = {} :: Collider2D;
+local SpriteAnimationClip: SpriteAnimationClip = {} :: SpriteAnimationClip;
+local SpriteAnimator: SpriteAnimator = {} :: SpriteAnimator;
+local SpriteSheet: SpriteSheet = {} :: SpriteSheet;
+local MeshRenderer: MeshRenderer = {} :: MeshRenderer;
+local ObjectDefinitionInstance: ObjectDefinitionInstance = {} :: ObjectDefinitionInstance;
 local Tile: Tile = {} :: Tile;
 local TilemapRenderer: TilemapRenderer = {} :: TilemapRenderer;
 local Tilemap: Tilemap = {} :: Tilemap;
 local TilemapLayer: TilemapLayer = {} :: TilemapLayer;
 local Rect: Rect = {} :: Rect;
-local SpriteRenderer: SpriteRenderer = {} :: SpriteRenderer;
-local ActiveCamera: ActiveCamera = {} :: ActiveCamera;
-local SpriteAnimationClip: SpriteAnimationClip = {} :: SpriteAnimationClip;
-local SpriteAnimator: SpriteAnimator = {} :: SpriteAnimator;
-local SpriteSheet: SpriteSheet = {} :: SpriteSheet;
-local ObjectDefinitionInstance: ObjectDefinitionInstance = {} :: ObjectDefinitionInstance;
-local Sorting: Sorting = {} :: Sorting;
-local PhysicsCollision: PhysicsCollision = {} :: PhysicsCollision;
-local AudioListener: AudioListener = {} :: AudioListener;
-local CursorInteractable: CursorInteractable = {} :: CursorInteractable;
-local Camera: Camera = {} :: Camera;
 local ScreenEffects: ScreenEffects = {} :: ScreenEffects;
-local Collider2D: Collider2D = {} :: Collider2D;
-local MeshRenderer: MeshRenderer = {} :: MeshRenderer;
-local WorldAtmosphere: WorldAtmosphere = {} :: WorldAtmosphere;
+local AudioListener: AudioListener = {} :: AudioListener;
+local Sorting: Sorting = {} :: Sorting;
+local Camera: Camera = {} :: Camera;
+local CursorInteractable: CursorInteractable = {} :: CursorInteractable;
+local Collider3D: Collider3D = {} :: Collider3D;
 local PointLight: PointLight = {} :: PointLight;
 local DirectionalLight: DirectionalLight = {} :: DirectionalLight;
+local WorldAtmosphere: WorldAtmosphere = {} :: WorldAtmosphere;
+local SpriteRenderer: SpriteRenderer = {} :: SpriteRenderer;
+local ActiveCamera: ActiveCamera = {} :: ActiveCamera;
 local AudioSource: AudioSource = {} :: AudioSource;
-local Transform: Transform = {} :: Transform;
-local Collider3D: Collider3D = {} :: Collider3D;
+local PhysicsCollision: PhysicsCollision = {} :: PhysicsCollision;
+local Color: Color = {} :: Color;
 local Speed: Speed = {} :: Speed;
 
 return {
-    Color = Color,
+    Transform = Transform,
+    Collider2D = Collider2D,
+    SpriteAnimationClip = SpriteAnimationClip,
+    SpriteAnimator = SpriteAnimator,
+    SpriteSheet = SpriteSheet,
+    MeshRenderer = MeshRenderer,
+    ObjectDefinitionInstance = ObjectDefinitionInstance,
     Tile = Tile,
     TilemapRenderer = TilemapRenderer,
     Tilemap = Tilemap,
     TilemapLayer = TilemapLayer,
     Rect = Rect,
-    SpriteRenderer = SpriteRenderer,
-    ActiveCamera = ActiveCamera,
-    SpriteAnimationClip = SpriteAnimationClip,
-    SpriteAnimator = SpriteAnimator,
-    SpriteSheet = SpriteSheet,
-    ObjectDefinitionInstance = ObjectDefinitionInstance,
-    Sorting = Sorting,
-    PhysicsCollision = PhysicsCollision,
-    AudioListener = AudioListener,
-    CursorInteractable = CursorInteractable,
-    Camera = Camera,
     ScreenEffects = ScreenEffects,
-    Collider2D = Collider2D,
-    MeshRenderer = MeshRenderer,
-    WorldAtmosphere = WorldAtmosphere,
+    AudioListener = AudioListener,
+    Sorting = Sorting,
+    Camera = Camera,
+    CursorInteractable = CursorInteractable,
+    Collider3D = Collider3D,
     PointLight = PointLight,
     DirectionalLight = DirectionalLight,
+    WorldAtmosphere = WorldAtmosphere,
+    SpriteRenderer = SpriteRenderer,
+    ActiveCamera = ActiveCamera,
     AudioSource = AudioSource,
-    Transform = Transform,
-    Collider3D = Collider3D,
+    PhysicsCollision = PhysicsCollision,
+    Color = Color,
     Speed = Speed,
     vec2 = function(x: number, y: number): Vec2 return { x = x, y = y } end,
     vec3 = function(x: number, y: number, z: number): Vec3 return { x = x, y = y, z = z } end,

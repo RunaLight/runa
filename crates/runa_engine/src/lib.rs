@@ -7,9 +7,11 @@ pub use runa_asset as asset;
 pub use runa_core as core;
 pub use runa_ecs as ecs;
 pub use runa_macros as macros;
+pub use runa_script_api as scripting_api;
 pub mod scripting;
 
 pub use core::console_log;
 pub use core::Color;
 pub use engine::Engine;
+pub use runa_macros::script_fn;
 pub use runa_macros::system;

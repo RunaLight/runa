@@ -1,6 +1,7 @@
 use runa_macros::Scriptable;
 
 #[derive(Clone, Debug, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct ObjectDefinitionInstance {
     pub object_id: String,
 }

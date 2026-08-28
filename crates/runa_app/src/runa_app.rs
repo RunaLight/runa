@@ -52,6 +52,14 @@ impl RunaApp {
         world: runa_ecs::World,
         config: RunaWindowConfig,
     ) -> Result<(), EventLoopError> {
+        // Auto-generate the Luau type-definition module (`runa.luau`) so the editor /
+        // `luau-lsp` can type-check scripts. Best-effort: I/O errors are ignored.
+        // Only done in debug builds — shipping/final builds must not duplicate the
+        // file into the game's `scripts` folder.
+        #[cfg(debug_assertions)]
+        if let Some(path) = &config.luau_types_path {
+            runa_script_api::write_luau_types(path);
+        }
         Self::run_with_world(world, config)
     }
 

@@ -12,6 +12,7 @@ use runa_macros::Scriptable;
 /// let (h, s, v) = Color::from_hsv(120.0, 0.5, 0.8).to_hsv();
 /// ```
 #[derive(Debug, Clone, Copy, Scriptable)]
+#[script(crate = "::runa_script_api")]
 pub struct Color {
     pub r: f32,
     pub g: f32,

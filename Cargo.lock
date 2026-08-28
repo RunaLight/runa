@@ -2363,6 +2363,7 @@ dependencies = [
  "runa_ecs",
  "runa_render",
  "runa_render_api",
+ "runa_script_api",
  "winit",
 ]
 
@@ -2453,6 +2454,7 @@ version = "0.8.0-pre.3"
 dependencies = [
  "bytemuck",
  "glam",
+ "luau",
  "runa_asset",
 ]
 

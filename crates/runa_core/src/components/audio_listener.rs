@@ -17,6 +17,7 @@
 use runa_macros::Scriptable;
 
 #[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api")]
 pub struct AudioListener {
     /// Listener volume (0.0 to 1.0)
     pub volume: f32,

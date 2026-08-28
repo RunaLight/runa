@@ -31,6 +31,11 @@ pub struct RunaWindowConfig {
     pub vsync: bool,
     pub show_fps_in_title: bool,
     pub window_icon: Option<String>,
+    /// Where `RunaApp` writes the auto-generated Luau type-definition module
+    /// (`runa.luau`) on startup so `luau-lsp` can type-check scripts. `Some(path)`
+    /// enables generation (default `scripts/runa.luau`, relative to the current
+    /// working directory); `None` disables it.
+    pub luau_types_path: Option<std::path::PathBuf>,
 }
 
 impl Default for RunaWindowConfig {
@@ -43,6 +48,7 @@ impl Default for RunaWindowConfig {
             vsync: true,
             show_fps_in_title: false,
             window_icon: None,
+            luau_types_path: Some(std::path::PathBuf::from("scripts/runa.luau")),
         }
     }
 }

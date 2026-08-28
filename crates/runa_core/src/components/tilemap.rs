@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 /// Rectangle used for UV coordinates and placement.
 #[derive(Clone, Copy, Debug, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -26,6 +27,7 @@ impl Rect {
 
 /// A single tile in a tilemap.
 #[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct Tile {
     #[script(skip)]
     pub texture: Option<Arc<TextureAsset>>, // None means an empty tile
@@ -56,6 +58,7 @@ impl Tile {
 
 /// A single tilemap layer.
 #[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct TilemapLayer {
     pub name: String,
     pub width: u32,
@@ -94,6 +97,7 @@ impl TilemapLayer {
 
 /// Tilemap data component.
 #[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable)]
 pub struct Tilemap {
     /// Map size in tiles.
     pub width: u32,
@@ -287,6 +291,7 @@ impl Tilemap {
 
 /// Rendering Component for Tilemap
 #[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api")]
 pub struct TilemapRenderer;
 
 impl TilemapRenderer {

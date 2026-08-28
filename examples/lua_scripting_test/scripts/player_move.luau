@@ -16,6 +16,7 @@ function update(ctx: runa.ScriptContext)
         if ctx.input:is_key_pressed("KeyW") then dir.y = dir.y + 1 end
         if ctx.input:is_key_pressed("KeyS") then dir.y = dir.y - 1 end
 
+
         if runa.length2(dir) > 0 then
             dir = runa.normalize2(dir)
         end

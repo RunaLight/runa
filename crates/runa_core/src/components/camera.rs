@@ -1,5 +1,6 @@
 use glam::{Mat4, Vec2, Vec3};
 use runa_macros::Scriptable;
+use runa_script_api::luau::{FromLua, IntoLua, LuaRef, Result, Value};
 
 use super::Transform;
 
@@ -13,8 +14,32 @@ pub enum ProjectionType {
     Perspective,
 }
 
+impl<'lua> IntoLua<'lua> for ProjectionType {
+    fn into_lua(self, lua: LuaRef<'lua>) -> Result<Value<'lua>> {
+        let s = match self {
+            ProjectionType::Orthographic => "Orthographic",
+            ProjectionType::Perspective => "Perspective",
+        };
+        s.into_lua(lua)
+    }
+}
+
+impl<'lua> FromLua<'lua> for ProjectionType {
+    fn from_lua(value: Value<'lua>, lua: LuaRef<'lua>) -> Result<Self> {
+        if let Value::Nil = value {
+            return Ok(Self::default());
+        }
+        let s: String = String::from_lua(value, lua)?;
+        match s.as_str() {
+            "Perspective" => Ok(ProjectionType::Perspective),
+            _ => Ok(ProjectionType::Orthographic),
+        }
+    }
+}
+
 /// A shared camera component with 2D and 3D support.
 #[derive(Debug, Clone, Copy, Scriptable)]
+#[script(crate = "::runa_script_api")]
 pub struct Camera {
     /// Camera position in world space.
     pub position: Vec3,
@@ -24,7 +49,6 @@ pub struct Camera {
     pub up: Vec3,
 
     /// Projection mode.
-    #[script(skip)]
     pub projection: ProjectionType,
 
     // Orthographic projection parameters (2D)

@@ -9,3 +9,4 @@ authors.workspace = true
 runa_asset = { path = "../runa_asset" }
 glam.workspace = true
 bytemuck = { version = "1.25.0", features = ["derive"] }
+luau = "0.733"
