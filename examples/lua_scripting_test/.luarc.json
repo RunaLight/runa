@@ -1,5 +1,5 @@
 {
-  "workspace.library": ["./scripts"],
+  "workspace.library": ["C:/Users/Nik/Documents/coding/runa-engine/examples/lua_scripting_test/.runa"],
   "runtime.version": "Lua 5.4",
   "diagnostics.globals": [
     "print",

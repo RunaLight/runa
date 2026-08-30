@@ -8,7 +8,7 @@ pub const DEFAULT_SPRITE_PIXELS_PER_UNIT: f32 = 100.0;
 
 /// 2D sprite component — draws a textured quad.
 #[derive(Clone, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct SpriteRenderer {
     #[script(skip)]
     pub texture: OnceLock<Option<Handle<TextureAsset>>>,

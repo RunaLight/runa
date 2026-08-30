@@ -3,7 +3,7 @@ use runa_macros::Scriptable;
 use std::sync::Mutex;
 
 #[derive(Default, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct CursorInteractable {
     pub is_pressed: bool,
     pub is_hovered: bool,

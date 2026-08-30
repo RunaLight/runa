@@ -25,6 +25,7 @@ function update(ctx: runa.ScriptContext)
         t.position.x = t.position.x + dir.x * speed * ctx.dt
         t.position.y = t.position.y + dir.y * speed * ctx.dt
 
+
         -- Emit a movement event every frame the player is moving (observe it from a
         -- Rust `EventBus` subscriber, or just watch the position print below).
         ctx.events[#ctx.events + 1] = { name = "player_moved", x = t.position.x, y = t.position.y }

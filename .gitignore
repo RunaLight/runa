@@ -51,3 +51,6 @@ Desktop.ini     # Windows
 
 # === Автогенерируемые файлы (build.rs) ===
 /crates/runa_scripting/runa_types.lua
+
+# === Сгенерированные Luau типы проекта (runa.luau) ===
+**/.runa/

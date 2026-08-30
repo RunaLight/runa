@@ -30,7 +30,7 @@ impl Default for BackgroundMode {
 }
 
 #[derive(Clone, Copy, Debug, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct WorldAtmosphere {
     pub ambient_color: Color,
     pub ambient_intensity: f32,

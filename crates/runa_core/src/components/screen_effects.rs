@@ -2,7 +2,7 @@ use runa_macros::Scriptable;
 use runa_render_api::{ScreenEffectData, ScreenEffectFlags};
 
 #[derive(Clone, Debug, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct ScreenEffects {
     pub enabled: ScreenEffectFlags,
     pub fade_color: [f32; 4],
@@ -107,3 +107,11 @@ impl ScreenEffects {
         }
     }
 }
+
+// Luau type definition for the effect flags struct (mirrors
+// `runa_render_api::ScreenEffectFlags`).
+runa_script_api::submit!(runa_script_api::ScriptAuxType {
+    name: "ScreenEffectFlags",
+    type_def: "--- Screen-effect toggles; each field enables the matching effect.\nexport type ScreenEffectFlags = { fade: boolean, vignette: boolean, rgb_shift: boolean, tint: boolean, color_adjust: boolean }\n",
+    builtin: true,
+});

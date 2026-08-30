@@ -1,7 +1,7 @@
 use runa_macros::Scriptable;
 
 #[derive(Clone, Copy, Debug, Default, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Sorting {
     pub order: i32,
     pub y_sort: bool,

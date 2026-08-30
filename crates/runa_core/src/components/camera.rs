@@ -37,9 +37,16 @@ impl<'lua> FromLua<'lua> for ProjectionType {
     }
 }
 
+// Luau type definition for the camera projection mode.
+runa_script_api::submit!(runa_script_api::ScriptAuxType {
+    name: "ProjectionType",
+    type_def: "--- Camera projection mode.\nexport type ProjectionType = \"Orthographic\" | \"Perspective\"\n",
+    builtin: true,
+});
+
 /// A shared camera component with 2D and 3D support.
 #[derive(Debug, Clone, Copy, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Camera {
     /// Camera position in world space.
     pub position: Vec3,

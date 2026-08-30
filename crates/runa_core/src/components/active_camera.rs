@@ -12,5 +12,5 @@ use runa_macros::Scriptable;
 /// object.add_component(ActiveCamera);
 /// ```
 #[derive(Default, Clone, Copy, Debug, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct ActiveCamera;

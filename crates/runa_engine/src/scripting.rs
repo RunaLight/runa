@@ -127,10 +127,18 @@ impl ScriptComponent {
                 if let Ok(mtime) = meta.modified() {
                     if self.last_modified[i] != Some(mtime) {
                         if let Ok(src) = fs::read_to_string(path) {
-                            if let Ok(Value::Table(tbl)) = lua.load(src.as_str()).call::<Value>(())
-                            {
-                                let _ = arr.set((i as i64) + 1, tbl);
+                            match lua.load(src.as_str()).call::<Value>(()) {
+                                Ok(Value::Table(tbl)) => {
+                                    let _ = arr.set((i as i64) + 1, tbl);
+                                }
+                                Ok(_) => {} // script defines globals instead of returning a table
+                                Err(err) => {
+                                    eprintln!("[script] load error in {}: {err}", path.display());
+                                }
                             }
+                            // Track the mtime even on failure so a syntax error doesn't
+                            // re-trigger compilation every frame; fixing the file updates
+                            // the mtime and reloads it.
                             self.last_modified[i] = Some(mtime);
                             self.started = false;
                         }
@@ -191,6 +199,30 @@ fn setup_runa_module(lua: &Lua) {
             Ok(t)
         }))
         .expect("vec3"),
+    );
+    let _ = runa.set(
+        "vec4",
+        lua.create_function(luau::callback!(|lua, x: f64, y: f64, z: f64, w: f64| {
+            let t = lua.create_table()?;
+            t.set("x", x)?;
+            t.set("y", y)?;
+            t.set("z", z)?;
+            t.set("w", w)?;
+            Ok(t)
+        }))
+        .expect("vec4"),
+    );
+    let _ = runa.set(
+        "quat",
+        lua.create_function(luau::callback!(|lua, x: f64, y: f64, z: f64, w: f64| {
+            let t = lua.create_table()?;
+            t.set("x", x)?;
+            t.set("y", y)?;
+            t.set("z", z)?;
+            t.set("w", w)?;
+            Ok(t)
+        }))
+        .expect("quat"),
     );
     let _ = runa.set(
         "normalize2",
@@ -739,7 +771,9 @@ pub fn script_system(world: &mut World) {
             let mut ran = false;
             for (_i, callbacks) in scripts_tbl.pairs::<i64, Table>().flatten() {
                 if let Ok(f) = callbacks.get::<Function>("start") {
-                    let _ = f.call::<()>(&ctx);
+                    if let Err(err) = f.call::<()>(&ctx) {
+                        eprintln!("[script] entity {e} script error: {err}");
+                    }
                     ran = true;
                 }
             }
@@ -747,7 +781,9 @@ pub fn script_system(world: &mut World) {
             // callbacks table (e.g. the unit tests).
             if !ran {
                 if let Ok(f) = globals.get::<Function>("start") {
-                    let _ = f.call::<()>(&ctx);
+                    if let Err(err) = f.call::<()>(&ctx) {
+                        eprintln!("[script] entity {e} script error: {err}");
+                    }
                 }
             }
             if let Some(sc) = world.get_mut::<ScriptComponent>(e) {
@@ -757,13 +793,17 @@ pub fn script_system(world: &mut World) {
         let mut ran = false;
         for (_i, callbacks) in scripts_tbl.pairs::<i64, Table>().flatten() {
             if let Ok(f) = callbacks.get::<Function>("update") {
-                let _ = f.call::<()>(&ctx);
+                if let Err(err) = f.call::<()>(&ctx) {
+                        eprintln!("[script] entity {e} script error: {err}");
+                    }
                 ran = true;
             }
         }
         if !ran {
             if let Ok(f) = globals.get::<Function>("update") {
-                let _ = f.call::<()>(&ctx);
+                if let Err(err) = f.call::<()>(&ctx) {
+                        eprintln!("[script] entity {e} script error: {err}");
+                    }
             }
         }
 
@@ -1118,9 +1158,13 @@ mod tests {
     #[test]
     fn write_types_check() {
         let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push("../../examples/lua_scripting_test/scripts/runa.luau");
+        p.push("../../examples/lua_scripting_test/.runa/runa.luau");
         write_luau_types(&p);
         println!("wrote {}", p.display());
+        let content = std::fs::read_to_string(&p).expect("read generated runa.luau");
+        // Built-in engine types should come from the committed `runa_base.luau`.
+        assert!(content.contains("export type Transform"));
+        assert!(content.contains("export type Collider2DShape"));
     }
 
     // A user-defined, scriptable, addable component used to exercise runtime

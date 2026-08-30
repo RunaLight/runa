@@ -1,7 +1,7 @@
 use runa_macros::Scriptable;
 
 #[derive(Clone, Debug, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct SpriteSheet {
     pub columns: u32,
     pub rows: u32,
@@ -39,7 +39,7 @@ impl Default for SpriteSheet {
 }
 
 #[derive(Clone, Debug, Scriptable)]
-#[script(crate = "::runa_script_api", not_addable)]
+#[script(crate = "::runa_script_api", not_addable, builtin)]
 pub struct SpriteAnimationClip {
     pub name: String,
     pub start_frame: u32,
@@ -61,7 +61,7 @@ impl SpriteAnimationClip {
 }
 
 #[derive(Clone, Debug, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct SpriteAnimator {
     pub sheet: SpriteSheet,
     pub clips: Vec<SpriteAnimationClip>,

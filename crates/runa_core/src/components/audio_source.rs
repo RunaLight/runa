@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 /// Audio source component — attaches audio to a game object
 #[derive(Clone, Default, Scriptable)]
-#[script(crate = "::runa_script_api", not_addable)]
+#[script(crate = "::runa_script_api", not_addable, builtin)]
 pub struct AudioSource {
     /// Cached audio asset (decoded PCM samples)
     #[script(skip)]

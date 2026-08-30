@@ -69,7 +69,7 @@ impl<'lua> FromLua<'lua> for Collider2DShape {
 /// 2D collider attached to an entity. The world-space position/orientation
 /// comes from `Transform`; this struct only holds the local shape + flags.
 #[derive(Clone, Copy, Default, Scriptable)]
-#[script(crate = "::runa_script_api", not_addable)]
+#[script(crate = "::runa_script_api", not_addable, builtin)]
 pub struct Collider2D {
     pub shape: Collider2DShape,
     pub offset: Vec2,
@@ -149,3 +149,10 @@ pub struct OnTriggerStay2D {
 impl Event for OnTriggerEnter2D {}
 impl Event for OnTriggerExit2D {}
 impl Event for OnTriggerStay2D {}
+
+// Luau type definition for the tagged-union collider shape (2D).
+runa_script_api::submit!(runa_script_api::ScriptAuxType {
+    name: "Collider2DShape",
+    type_def: "--- 2D collider shape: a rect (half-size) or a circle.\nexport type Collider2DShape = { type: \"Rect\", half_size: Vec2 } | { type: \"Circle\", radius: number }\n",
+    builtin: true,
+});

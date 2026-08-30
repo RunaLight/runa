@@ -1,8 +1,9 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse::Parse, parse::ParseStream, parse_macro_input, Data, DeriveInput, Expr, Field, Fields,
-    FnArg, Ident, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Token, Type,
+    ext::IdentExt, parse::Parse, parse::ParseStream, parse_macro_input, Attribute, Data,
+    DeriveInput, Expr, Field, Fields, FnArg, Ident, ItemFn, ItemStruct, LitStr, Pat, ReturnType,
+    Token, Type,
 };
 
 /// `#[system(Stage)]` / `#[system(Stage, "crate")]` argument.
@@ -151,6 +152,7 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
     // `#[script(addable)]` (or nothing) — the default already resolves to
     // `runa_engine::scripting_api` / `runa_engine::ecs`.
     let mut addable = true;
+    let mut builtin = false;
     let mut crate_path: Option<String> = None;
     for attr in &input.attrs {
         if attr.path().is_ident("script") {
@@ -159,6 +161,8 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
                     addable = true;
                 } else if m.path.is_ident("not_addable") {
                     addable = false;
+                } else if m.path.is_ident("builtin") {
+                    builtin = true;
                 } else if m.path.is_ident("crate") {
                     let s: LitStr = m.value()?.parse()?;
                     crate_path = Some(s.value());
@@ -233,6 +237,7 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
             continue;
         }
 
+        def_body.push_str(&doc_block(&f.attrs, "    "));
         def_body.push_str(&format!("    {}: {},\n", fstr, luau_ty(&f.ty)));
 
         let (set_expr, get_expr, merge_expr) = match &f.ty {
@@ -340,7 +345,8 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
         }
     };
 
-    let type_def = format!("export type {} = {{\n{}}}", name_str, def_body);
+    let docs = doc_block(&input.attrs, "");
+    let type_def = format!("{docs}export type {} = {{\n{}}}", name_str, def_body);
     let type_def_lit = proc_macro2::Literal::string(&type_def);
 
     let add_fn: proc_macro2::TokenStream = if addable {
@@ -430,6 +436,7 @@ pub fn scriptable_derive(item: TokenStream) -> TokenStream {
                     from_luau: __scriptable_from_luau,
                     add: #addable_arm,
                     remove: #removeable_arm,
+                    builtin: #builtin,
                 }
             }
         };
@@ -606,6 +613,28 @@ pub fn script_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
+    // Build the typed Luau stub for the generated `.lua` type definitions:
+    // `name = function(a: number, b: string): boolean return false end`.
+    let mut stub = format!("{name_str} = function({})", arg_types
+        .iter()
+        .map(|t| luau_ty(t))
+        .collect::<Vec<_>>()
+        .join(", "));
+    match &sig.output {
+        ReturnType::Default => stub.push_str(" end"),
+        ReturnType::Type(_, ty) if is_unit(ty) => stub.push_str(" end"),
+        ReturnType::Type(_, ty) => {
+            stub.push_str(&format!(": {} return {} end", luau_ty(ty), default_luau_value(&luau_ty(ty))));
+        }
+    }
+    let stub_lit = proc_macro2::Literal::string(&stub);
+    let doc_lit = proc_macro2::Literal::string(doc_block(&input.attrs, "    ").trim_end());
+    let builtin_ts: proc_macro2::TokenStream = if crate_arg.builtin {
+        "true".parse().unwrap()
+    } else {
+        "false".parse().unwrap()
+    };
+
     let extracts = arg_idents
         .iter()
         .zip(arg_types.iter())
@@ -643,31 +672,99 @@ pub fn script_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
                 #(#extracts)*
                 let __r = #name(#(#arg_idents),*);
                 #ret_expr
-            }
+            },
+            stub: #stub_lit,
+            doc: #doc_lit,
+            builtin: #builtin_ts,
         });
     };
 
     out.into()
 }
 
-/// `#[script_fn(crate = "...")]` argument.
+/// `#[script_fn(crate = "...")]` / `#[script_fn(builtin)]` argument.
 struct FnCrateArg {
     crate_path: Option<LitStr>,
+    builtin: bool,
 }
 
 impl Parse for FnCrateArg {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut crate_path = None;
-        if input.peek(Token![crate]) {
-            input.parse::<Token![crate]>()?;
-            input.parse::<Token![=]>()?;
-            crate_path = Some(input.parse::<LitStr>()?);
+        let mut builtin = false;
+        while !input.is_empty() {
+            if input.peek(Token![crate]) {
+                input.parse::<Token![crate]>()?;
+                input.parse::<Token![=]>()?;
+                crate_path = Some(input.parse::<LitStr>()?);
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                }
+            } else if input.peek(syn::Ident::peek_any) {
+                let id: syn::Ident = input.parse()?;
+                if id == "builtin" {
+                    builtin = true;
+                } else {
+                    return Err(syn::Error::new(
+                        id.span(),
+                        "expected `crate = \"...\"` or `builtin`",
+                    ));
+                }
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                }
+            } else {
+                return Err(input.error("expected `crate = \"...\"` or `builtin`"));
+            }
         }
-        Ok(FnCrateArg { crate_path })
+        Ok(FnCrateArg { crate_path, builtin })
     }
 }
 
 /// True for the unit type `()`.
 fn is_unit(ty: &Type) -> bool {
     matches!(ty, Type::Tuple(t) if t.elems.is_empty())
+}
+
+/// Collect `///` doc comments as Luau `--- doc` lines, each prefixed with `indent`.
+/// Emits nothing when there are no doc comments.
+fn doc_block(attrs: &[Attribute], indent: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for a in attrs {
+        if !a.path().is_ident("doc") {
+            continue;
+        }
+        if let syn::Meta::NameValue(nv) = &a.meta {
+            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(ls), .. }) = &nv.value {
+                lines.push(ls.value());
+            }
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    for l in lines {
+        for ln in l.lines() {
+            out.push_str(indent);
+            out.push_str("--- ");
+            out.push_str(ln.trim());
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// A zero-ish Luau expression of the given (already-mapped) Luau type, used as
+/// the body of generated function stubs.
+fn default_luau_value(luau_ty: &str) -> String {
+    match luau_ty {
+        "number" => "0".into(),
+        "boolean" => "false".into(),
+        "string" => "\"\"".into(),
+        "Vec2" => "{ x = 0, y = 0 }".into(),
+        "Vec3" => "{ x = 0, y = 0, z = 0 }".into(),
+        "Vec4" | "Quat" => "{ x = 0, y = 0, z = 0, w = 0 }".into(),
+        _ => "nil".into(),
+    }
 }

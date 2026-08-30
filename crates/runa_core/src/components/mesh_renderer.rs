@@ -493,7 +493,7 @@ impl Mesh {
 }
 
 #[derive(Clone, Scriptable)]
-#[script(crate = "::runa_script_api", not_addable)]
+#[script(crate = "::runa_script_api", not_addable, builtin)]
 pub struct MeshRenderer {
     #[script(skip)]
     pub mesh: Option<Handle<Mesh>>,

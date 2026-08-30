@@ -71,7 +71,7 @@ impl<'lua> FromLua<'lua> for Collider3DShape {
 /// 3D collider attached to an entity. World position/orientation comes from
 /// `Transform`; this only holds the local shape + flags.
 #[derive(Clone, Copy, Scriptable)]
-#[script(crate = "::runa_script_api")]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Collider3D {
     pub shape: Collider3DShape,
     pub offset: Vec3,
@@ -166,3 +166,10 @@ pub struct OnTriggerStay3D {
 impl Event for OnTriggerEnter3D {}
 impl Event for OnTriggerExit3D {}
 impl Event for OnTriggerStay3D {}
+
+// Luau type definition for the tagged-union collider shape (3D).
+runa_script_api::submit!(runa_script_api::ScriptAuxType {
+    name: "Collider3DShape",
+    type_def: "--- 3D collider shape: a box (half-size) or a sphere.\nexport type Collider3DShape = { type: \"Box\", half_size: Vec3 } | { type: \"Sphere\", radius: number }\n",
+    builtin: true,
+});

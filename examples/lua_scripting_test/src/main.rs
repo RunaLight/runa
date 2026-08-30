@@ -8,14 +8,15 @@ use runa_engine::script_fn;
 use runa_engine::scripting::load_script;
 
 fn main() {
-    // (debug) regenerate `scripts/runa.luau` from THIS binary so `luau-lsp` sees the
+    // (debug) regenerate `.runa/runa.luau` from THIS binary so `luau-lsp` sees the
     // `#[script_fn]` functions defined in this crate (e.g. `add_scores`). `inventory`
     // only enumerates fns linked into the running binary, so we must generate from
-    // here, not from `runa_app` (which doesn't link this example crate).
+    // here, not from `runa_app` (which doesn't link this example crate). The file is
+    // a merge of the engine's committed `runa_base.luau` + this crate's types.
     #[cfg(debug_assertions)]
     {
         let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-        let p = std::path::Path::new(&manifest).join("scripts/runa.luau");
+        let p = std::path::Path::new(&manifest).join(".runa/runa.luau");
         runa_engine::scripting::write_luau_types(&p);
     }
 
@@ -165,12 +166,12 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // Regenerates `scripts/runa.luau` for this example (mirrors what `main` does in
+    // Regenerates `.runa/runa.luau` for this example (mirrors what `main` does in
     // debug) and asserts that `#[script_fn]` fns from THIS crate are enumerated.
     #[test]
     fn generate_example_runa_luau() {
         let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
-        let p = std::path::Path::new(&manifest).join("scripts/runa.luau");
+        let p = std::path::Path::new(&manifest).join(".runa/runa.luau");
         runa_engine::scripting::write_luau_types(&p);
 
         let content = std::fs::read_to_string(&p).expect("read generated runa.luau");
@@ -178,13 +179,21 @@ mod tests {
             content.contains("add_scores = function"),
             "add_scores should appear in generated runa.luau (got:\n{content})"
         );
+        assert!(
+            content.contains("export type Transform"),
+            "engine built-ins should come from runa_base.luau (got:\n{content})"
+        );
     }
 
     // ---- Item 1: Sprite loading + every SpriteRenderer field editable from Luau ----
     #[test]
     fn lua_sprite_renderer_editable() {
         // Absolute path so the runtime `TextureAsset::load` can actually read the file.
-        let asset = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/Charactert.png");
+        // Strip stray `\r` (Windows/CRLF quirk in `CARGO_MANIFEST_DIR`) and escape any
+        // backslashes so the path survives Luau string-literal parsing.
+        let asset = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/Charactert.png")
+            .replace('\r', "")
+            .replace('\\', "/");
         let mut path = std::env::temp_dir();
         path.push("lua_sprite_renderer.luau");
         let src = format!(
@@ -218,7 +227,7 @@ mod tests {
 
         script_system(&mut world);
         let sr = world.get::<SpriteRenderer>(e).expect("SpriteRenderer added");
-        assert_eq!(sr.texture_path.as_deref(), Some(asset));
+        assert_eq!(sr.texture_path.as_deref(), Some(asset.as_str()));
         assert!((sr.pixels_per_unit - 32.0).abs() < 1e-6);
         assert_eq!(sr.uv_rect, [0.0, 0.0, 1.0, 1.0]);
         assert_eq!(sr.color, [1.0, 0.5, 0.25, 1.0]);
@@ -380,22 +389,20 @@ mod tests {
         world.init_resource::<Time>();
         world.init_resource::<InputState>();
         world.init_resource::<EventBus>();
-        let e = world.spawn((
-            Transform::default(),
-            Collider2D::default(),
-            Collider3D::default(),
-            PhysicsCollision::default(),
-            Sorting::default(),
-            Camera::default(),
-            AudioSource::default(),
-            AudioListener::default(),
-            MeshRenderer::default(),
-            ScreenEffects::default(),
-            CursorInteractable::default(),
-            ObjectDefinitionInstance::default(),
-            ActiveCamera::default(),
-            ScriptComponent::new(path.to_str().unwrap()),
-        ));
+        let e = world.spawn((Transform::default(),));
+        let _ = world.add_component(e, Collider2D::default());
+        let _ = world.add_component(e, Collider3D::default());
+        let _ = world.add_component(e, PhysicsCollision::default());
+        let _ = world.add_component(e, Sorting::default());
+        let _ = world.add_component(e, Camera::default());
+        let _ = world.add_component(e, AudioSource::default());
+        let _ = world.add_component(e, AudioListener::default());
+        let _ = world.add_component(e, MeshRenderer::new(Mesh::new(vec![], vec![])));
+        let _ = world.add_component(e, ScreenEffects::default());
+        let _ = world.add_component(e, CursorInteractable::default());
+        let _ = world.add_component(e, ObjectDefinitionInstance::new("enemy_01"));
+        let _ = world.add_component(e, ActiveCamera::default());
+        let _ = world.add_component(e, ScriptComponent::new(path.to_str().unwrap()));
 
         script_system(&mut world);
 
