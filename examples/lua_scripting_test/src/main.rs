@@ -408,7 +408,7 @@ mod tests {
         let _ = world.add_component(e, ScreenEffects::default());
         let _ = world.add_component(e, CursorInteractable::default());
         let _ = world.add_component(e, ObjectDefinitionInstance::new("enemy_01"));
-        let _ = world.add_component(e, ActiveCamera::default());
+        let _ = world.add_component(e, ActiveCamera);
         let _ = world.add_component(e, ScriptComponent::new(path.to_str().unwrap()));
 
         script_system(&mut world);
