@@ -1,4 +1,5 @@
 use glam::{Vec3, Vec4};
+use runa_macros::Scriptable;
 
 /// RGBA color with f32 components in [0..1] range.
 ///
@@ -10,7 +11,8 @@ use glam::{Vec3, Vec4};
 /// let teal = Color::hex("#008080").unwrap();
 /// let (h, s, v) = Color::from_hsv(120.0, 0.5, 0.8).to_hsv();
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Color {
     pub r: f32,
     pub g: f32,

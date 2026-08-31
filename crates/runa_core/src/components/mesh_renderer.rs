@@ -1,4 +1,5 @@
 use runa_asset::{Handle, TextureAsset};
+use runa_macros::Scriptable;
 use std::sync::Arc;
 
 #[repr(C)]
@@ -491,10 +492,13 @@ impl Mesh {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", not_addable, builtin)]
 pub struct MeshRenderer {
+    #[script(skip)]
     pub mesh: Option<Handle<Mesh>>,
     pub mesh_path: Option<String>,
+    #[script(skip)]
     pub materials: Vec<Handle<Material>>,
     pub visible: bool,
     pub cast_shadows: bool,

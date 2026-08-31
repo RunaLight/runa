@@ -2,12 +2,15 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use runa_asset::{Handle, TextureAsset};
+use runa_macros::Scriptable;
 
 pub const DEFAULT_SPRITE_PIXELS_PER_UNIT: f32 = 100.0;
 
 /// 2D sprite component — draws a textured quad.
-#[derive(Clone)]
+#[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct SpriteRenderer {
+    #[script(skip)]
     pub texture: OnceLock<Option<Handle<TextureAsset>>>,
     pub texture_path: Option<String>,
     pub pixels_per_unit: f32,
@@ -16,6 +19,10 @@ pub struct SpriteRenderer {
     /// When true, output `color` directly (using texture alpha for transparency).
     /// When false, multiply texture with `color` (legacy behavior).
     pub replace_color: bool,
+    /// Flip the sprite horizontally when rendering.
+    pub flip_x: bool,
+    /// Flip the sprite vertically when rendering.
+    pub flip_y: bool,
 }
 
 impl SpriteRenderer {
@@ -37,6 +44,8 @@ impl SpriteRenderer {
             uv_rect: Self::FULL_UV_RECT,
             color: [1.0; 4],
             replace_color: false,
+            flip_x: false,
+            flip_y: false,
         }
     }
 
@@ -49,6 +58,8 @@ impl SpriteRenderer {
             uv_rect: Self::FULL_UV_RECT,
             color: [1.0; 4],
             replace_color: false,
+            flip_x: false,
+            flip_y: false,
         }
     }
 
@@ -120,6 +131,8 @@ impl Default for SpriteRenderer {
             uv_rect: Self::FULL_UV_RECT,
             color: [1.0; 4],
             replace_color: false,
+            flip_x: false,
+            flip_y: false,
         }
     }
 }

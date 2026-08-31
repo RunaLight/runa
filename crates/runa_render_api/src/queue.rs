@@ -55,6 +55,8 @@ impl RenderQueue {
         uv_rect: [f32; 4],
         order: i32,
         replace_color: bool,
+        flip_x: bool,
+        flip_y: bool,
     ) {
         self.commands.push(RenderCommands::Sprite {
             texture,
@@ -65,6 +67,8 @@ impl RenderQueue {
             uv_rect,
             order,
             replace_color,
+            flip_x,
+            flip_y,
         });
     }
 

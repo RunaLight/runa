@@ -1,13 +1,16 @@
 use glam::{Quat, Vec3};
 
-#[derive(Clone, Debug, Default, Copy)]
+#[derive(Clone, Debug, Default, Copy, runa_macros::Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Transform {
     pub position: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
 
     // for interpolation for fixedframe
+    #[script(skip)]
     pub previous_position: Vec3,
+    #[script(skip)]
     pub previous_rotation: Quat,
 }
 

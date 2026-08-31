@@ -1,14 +1,19 @@
 use glam::Vec3;
+use runa_macros::Scriptable;
 use std::sync::Mutex;
 
-#[derive(Default)]
+#[derive(Default, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct CursorInteractable {
     pub is_pressed: bool,
     pub is_hovered: bool,
     pub was_hovered: bool,
     pub bounds_size: Vec3,
+    #[script(skip)]
     on_click: Option<Mutex<Box<dyn FnMut() + Send>>>,
+    #[script(skip)]
     on_hover_enter: Option<Mutex<Box<dyn FnMut() + Send>>>,
+    #[script(skip)]
     on_hover_exit: Option<Mutex<Box<dyn FnMut() + Send>>>,
 }
 

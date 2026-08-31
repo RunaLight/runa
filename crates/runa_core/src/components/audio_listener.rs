@@ -14,7 +14,10 @@
 /// support. Currently, the engine uses volume attenuation based on position
 /// to simulate directionality. For true stereo, consider upgrading the audio
 /// backend.
-#[derive(Clone)]
+use runa_macros::Scriptable;
+
+#[derive(Clone, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct AudioListener {
     /// Listener volume (0.0 to 1.0)
     pub volume: f32,

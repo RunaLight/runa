@@ -1,18 +1,52 @@
 use glam::{Mat4, Vec2, Vec3};
+use runa_macros::Scriptable;
+use runa_script_api::luau::{FromLua, IntoLua, LuaRef, Result, Value};
 
 use super::Transform;
 
 /// Camera projection type.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ProjectionType {
     /// Orthographic projection for 2D rendering.
+    #[default]
     Orthographic,
     /// Perspective projection for 3D rendering.
     Perspective,
 }
 
+impl<'lua> IntoLua<'lua> for ProjectionType {
+    fn into_lua(self, lua: LuaRef<'lua>) -> Result<Value<'lua>> {
+        let s = match self {
+            ProjectionType::Orthographic => "Orthographic",
+            ProjectionType::Perspective => "Perspective",
+        };
+        s.into_lua(lua)
+    }
+}
+
+impl<'lua> FromLua<'lua> for ProjectionType {
+    fn from_lua(value: Value<'lua>, lua: LuaRef<'lua>) -> Result<Self> {
+        if let Value::Nil = value {
+            return Ok(Self::default());
+        }
+        let s: String = String::from_lua(value, lua)?;
+        match s.as_str() {
+            "Perspective" => Ok(ProjectionType::Perspective),
+            _ => Ok(ProjectionType::Orthographic),
+        }
+    }
+}
+
+// Luau type definition for the camera projection mode.
+runa_script_api::submit!(runa_script_api::ScriptAuxType {
+    name: "ProjectionType",
+    type_def: "--- Camera projection mode.\nexport type ProjectionType = \"Orthographic\" | \"Perspective\"\n",
+    builtin: true,
+});
+
 /// A shared camera component with 2D and 3D support.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct Camera {
     /// Camera position in world space.
     pub position: Vec3,
@@ -37,6 +71,7 @@ pub struct Camera {
     pub fov: f32,
 
     /// Render viewport size.
+    #[script(skip)]
     pub viewport_size: (u32, u32),
 }
 

@@ -41,6 +41,7 @@ fn main() {
         vsync: false,
         show_fps_in_title: true,
         window_icon: None,
+        luau_types_path: None,
     };
 
     let _ = RunaApp::run_with_config(world, config);

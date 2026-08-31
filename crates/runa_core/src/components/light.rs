@@ -1,7 +1,9 @@
 use crate::Color;
 use glam::Vec3;
+use runa_macros::Scriptable;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct DirectionalLight {
     pub direction: Vec3,
     pub color: Color,
@@ -18,7 +20,8 @@ impl Default for DirectionalLight {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Scriptable)]
+#[script(crate = "::runa_script_api", builtin)]
 pub struct PointLight {
     pub color: Color,
     pub intensity: f32,

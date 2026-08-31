@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec2, Vec3};
+use luau::{FromLua, IntoLua, LuaRef, Result, Table, Value};
 
 use runa_asset::TextureAsset;
 
@@ -92,6 +93,34 @@ pub struct ScreenEffectFlags {
     pub rgb_shift: bool,
     pub tint: bool,
     pub color_adjust: bool,
+}
+
+impl<'lua> IntoLua<'lua> for ScreenEffectFlags {
+    fn into_lua(self, lua: LuaRef<'lua>) -> Result<Value<'lua>> {
+        let t = lua.create_table()?;
+        t.set("fade", self.fade)?;
+        t.set("vignette", self.vignette)?;
+        t.set("rgb_shift", self.rgb_shift)?;
+        t.set("tint", self.tint)?;
+        t.set("color_adjust", self.color_adjust)?;
+        Ok(Value::Table(t))
+    }
+}
+
+impl<'lua> FromLua<'lua> for ScreenEffectFlags {
+    fn from_lua(value: Value<'lua>, lua: LuaRef<'lua>) -> Result<Self> {
+        if let Value::Nil = value {
+            return Ok(Self::default());
+        }
+        let t = Table::from_lua(value, lua)?;
+        Ok(Self {
+            fade: t.get("fade").unwrap_or(false),
+            vignette: t.get("vignette").unwrap_or(false),
+            rgb_shift: t.get("rgb_shift").unwrap_or(false),
+            tint: t.get("tint").unwrap_or(false),
+            color_adjust: t.get("color_adjust").unwrap_or(false),
+        })
+    }
 }
 
 impl ScreenEffectFlags {
@@ -201,6 +230,8 @@ pub enum RenderCommands {
         uv_rect: [f32; 4],
         order: i32,
         replace_color: bool,
+        flip_x: bool,
+        flip_y: bool,
     },
     Text {
         text: String,
