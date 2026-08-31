@@ -226,7 +226,9 @@ mod tests {
         ));
 
         script_system(&mut world);
-        let sr = world.get::<SpriteRenderer>(e).expect("SpriteRenderer added");
+        let sr = world
+            .get::<SpriteRenderer>(e)
+            .expect("SpriteRenderer added");
         assert_eq!(sr.texture_path.as_deref(), Some(asset.as_str()));
         assert!((sr.pixels_per_unit - 32.0).abs() < 1e-6);
         assert_eq!(sr.uv_rect, [0.0, 0.0, 1.0, 1.0]);
@@ -235,7 +237,10 @@ mod tests {
         assert!(sr.flip_x);
         assert!(!sr.flip_y);
         // The sprite must genuinely load from the runtime path.
-        assert!(sr.texture().is_some(), "texture should load from texture_path");
+        assert!(
+            sr.texture().is_some(),
+            "texture should load from texture_path"
+        );
 
         let _ = std::fs::remove_file(&path);
     }
@@ -274,7 +279,9 @@ mod tests {
         ));
 
         script_system(&mut world);
-        let a = world.get::<SpriteAnimator>(e).expect("SpriteAnimator added");
+        let a = world
+            .get::<SpriteAnimator>(e)
+            .expect("SpriteAnimator added");
         assert_eq!(a.sheet.columns, 4);
         assert_eq!(a.sheet.rows, 2);
         assert_eq!(a.clips.len(), 2);
@@ -412,14 +419,18 @@ mod tests {
         assert_eq!(t.scale, Vec3::new(2.0, 2.0, 2.0));
 
         let c2 = world.get::<Collider2D>(e).unwrap();
-        assert!(matches!(c2.shape, Collider2DShape::Circle { radius } if (radius - 2.5).abs() < 1e-6));
+        assert!(
+            matches!(c2.shape, Collider2DShape::Circle { radius } if (radius - 2.5).abs() < 1e-6)
+        );
         assert_eq!(c2.offset, Vec2::new(1.0, 1.0));
         assert!(!c2.enabled);
         assert!(c2.is_trigger);
         assert_eq!(c2.layer, 7);
 
         let c3 = world.get::<Collider3D>(e).unwrap();
-        assert!(matches!(c3.shape, Collider3DShape::Box { half_size } if half_size == Vec3::new(1.0, 2.0, 3.0)));
+        assert!(
+            matches!(c3.shape, Collider3DShape::Box { half_size } if half_size == Vec3::new(1.0, 2.0, 3.0))
+        );
         assert_eq!(c3.offset, Vec3::new(0.0, 0.0, 5.0));
         assert!(!c3.enabled);
         assert!(c3.is_trigger);

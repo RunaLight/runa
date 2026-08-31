@@ -615,16 +615,23 @@ pub fn script_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Build the typed Luau stub for the generated `.lua` type definitions:
     // `name = function(a: number, b: string): boolean return false end`.
-    let mut stub = format!("{name_str} = function({})", arg_types
-        .iter()
-        .map(|t| luau_ty(t))
-        .collect::<Vec<_>>()
-        .join(", "));
+    let mut stub = format!(
+        "{name_str} = function({})",
+        arg_types
+            .iter()
+            .map(|t| luau_ty(t))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
     match &sig.output {
         ReturnType::Default => stub.push_str(" end"),
         ReturnType::Type(_, ty) if is_unit(ty) => stub.push_str(" end"),
         ReturnType::Type(_, ty) => {
-            stub.push_str(&format!(": {} return {} end", luau_ty(ty), default_luau_value(&luau_ty(ty))));
+            stub.push_str(&format!(
+                ": {} return {} end",
+                luau_ty(ty),
+                default_luau_value(&luau_ty(ty))
+            ));
         }
     }
     let stub_lit = proc_macro2::Literal::string(&stub);
@@ -717,7 +724,10 @@ impl Parse for FnCrateArg {
                 return Err(input.error("expected `crate = \"...\"` or `builtin`"));
             }
         }
-        Ok(FnCrateArg { crate_path, builtin })
+        Ok(FnCrateArg {
+            crate_path,
+            builtin,
+        })
     }
 }
 
@@ -735,7 +745,11 @@ fn doc_block(attrs: &[Attribute], indent: &str) -> String {
             continue;
         }
         if let syn::Meta::NameValue(nv) = &a.meta {
-            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(ls), .. }) = &nv.value {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(ls),
+                ..
+            }) = &nv.value
+            {
                 lines.push(ls.value());
             }
         }

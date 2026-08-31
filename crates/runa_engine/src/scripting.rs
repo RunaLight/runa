@@ -391,12 +391,13 @@ fn setup_runa_module(lua: &Lua) {
             Ok(lf) => lf,
             Err(_) => continue,
         };
-        let lf_global = match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
-            func(lua, args)
-        })) {
-            Ok(lf) => lf,
-            Err(_) => continue,
-        };
+        let lf_global =
+            match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
+                func(lua, args)
+            })) {
+                Ok(lf) => lf,
+                Err(_) => continue,
+            };
         let _ = runa.set(f.name, lf);
         let _ = globals.set(f.name, lf_global);
     }
@@ -417,12 +418,7 @@ fn setup_runa_module(lua: &Lua) {
     let _ = runa.set(
         "sprite_clip",
         lua.create_function(luau::callback!(
-            |lua,
-             name: String,
-             start_frame: u32,
-             end_frame: u32,
-             fps: f32,
-             looping: bool| {
+            |lua, name: String, start_frame: u32, end_frame: u32, fps: f32, looping: bool| {
                 let t = lua.create_table()?;
                 t.set("name", name)?;
                 t.set("start_frame", start_frame)?;
@@ -794,16 +790,16 @@ pub fn script_system(world: &mut World) {
         for (_i, callbacks) in scripts_tbl.pairs::<i64, Table>().flatten() {
             if let Ok(f) = callbacks.get::<Function>("update") {
                 if let Err(err) = f.call::<()>(&ctx) {
-                        eprintln!("[script] entity {e} script error: {err}");
-                    }
+                    eprintln!("[script] entity {e} script error: {err}");
+                }
                 ran = true;
             }
         }
         if !ran {
             if let Ok(f) = globals.get::<Function>("update") {
                 if let Err(err) = f.call::<()>(&ctx) {
-                        eprintln!("[script] entity {e} script error: {err}");
-                    }
+                    eprintln!("[script] entity {e} script error: {err}");
+                }
             }
         }
 

@@ -50,8 +50,9 @@ impl<'lua> FromLua<'lua> for Collider3DShape {
         let kind: String = t.get("type").unwrap_or_default();
         match kind.as_str() {
             "Box" => {
-                let hs =
-                    t.get::<Table>("half_size").unwrap_or_else(|_| lua.create_table().unwrap());
+                let hs = t
+                    .get::<Table>("half_size")
+                    .unwrap_or_else(|_| lua.create_table().unwrap());
                 let x: f32 = hs.get("x").unwrap_or(0.0);
                 let y: f32 = hs.get("y").unwrap_or(0.0);
                 let z: f32 = hs.get("z").unwrap_or(0.0);

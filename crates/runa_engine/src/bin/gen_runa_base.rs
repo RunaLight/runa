@@ -18,8 +18,8 @@ use std::path::PathBuf;
 use runa_engine::scripting_api;
 
 fn main() {
-    let out = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../runa_script_api/scripts/runa_base.luau");
+    let out =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../runa_script_api/scripts/runa_base.luau");
     let base = out.parent().unwrap_or(&out);
     if !base.exists() {
         std::fs::create_dir_all(base).expect("create scripts/ dir");
