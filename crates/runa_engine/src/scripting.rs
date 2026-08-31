@@ -8,13 +8,13 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use luau::{Function, Lua, Table, Value, Variadic};
+use luau::{Function, Lua, Table, Value};
 use runa_core::resources::event::{Event, EventBus};
 use runa_core::resources::input::InputState;
 use runa_core::resources::Time;
 use runa_ecs::{Entity, World, R};
 use runa_macros::system;
-use runa_script_api::{iter, ScriptFunction, ScriptType};
+use runa_script_api::{iter, ScriptType};
 
 // `write_luau_types` lives in `runa_script_api` (so `runa_app` can call it without
 // a `runa_engine -> runa_app` cycle); re-export it here so the public path
@@ -380,27 +380,6 @@ fn setup_runa_module(lua: &Lua) {
         }))
         .expect("deg"),
     );
-
-    // Register all `#[script_fn]` functions: both on the `runa` module and as bare
-    // globals, so scripts can call `runa.my_func(...)` or `my_func(...)`.
-    for f in iter::<ScriptFunction>() {
-        let func = f.func;
-        let lf = match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
-            func(lua, args)
-        })) {
-            Ok(lf) => lf,
-            Err(_) => continue,
-        };
-        let lf_global =
-            match lua.create_function(luau::callback!(move |lua, args: Variadic<Value>| {
-                func(lua, args)
-            })) {
-                Ok(lf) => lf,
-                Err(_) => continue,
-            };
-        let _ = runa.set(f.name, lf);
-        let _ = globals.set(f.name, lf_global);
-    }
 
     // GDScript-style convenience constructors so Luau scripts can build sprite data
     // ergonomically. Each returns a plain table matching the corresponding Rust

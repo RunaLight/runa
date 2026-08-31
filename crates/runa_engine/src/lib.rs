@@ -13,5 +13,4 @@ pub mod scripting;
 pub use core::console_log;
 pub use core::Color;
 pub use engine::Engine;
-pub use runa_macros::script_fn;
 pub use runa_macros::system;

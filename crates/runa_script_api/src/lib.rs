@@ -80,40 +80,6 @@ impl Copy for ScriptAuxType {}
 
 inventory::collect!(ScriptAuxType);
 
-/// A Rust function exposed to Luau via `#[script_fn]`. The engine registers every
-/// collected instance onto the `runa` module (and as a bare global) when it builds a
-/// VM, so scripts can call `runa.my_function(...)` / `my_function(...)`.
-///
-/// `stub` is the Luau type-definition snippet (a `name = function(...) ... end`
-/// expression body) used by the type generator, so `luau-lsp` sees the exact
-/// signature instead of a bare `...: any`.
-pub struct ScriptFunction {
-    pub name: &'static str,
-    /// Uniform callback shape: all Luau arguments arrive as a `Variadic<Value>` and
-    /// the result is returned as a single `Value`. The `#[script_fn]` macro generates
-    /// the glue that converts arguments/return value to/from Rust types.
-    pub func: for<'lua> fn(
-        lua: luau::LuaRef<'lua>,
-        args: luau::Variadic<luau::Value<'lua>>,
-    ) -> luau::Result<luau::Value<'lua>>,
-    /// Luau expression used in the generated module: `name = function(...): T ... end`.
-    pub stub: &'static str,
-    /// Luau doc comment (`--- ...` lines, 4-space indented) shown on hover.
-    /// Empty when the Rust fn has no `///` doc comment.
-    pub doc: &'static str,
-    /// Whether this function ships with the engine.
-    pub builtin: bool,
-}
-
-impl Clone for ScriptFunction {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for ScriptFunction {}
-
-inventory::collect!(ScriptFunction);
-
 /// Math type conversions between `glam` and Luau tables. These are free
 /// functions (not trait impls) so we avoid the orphan rule — the derive macro
 /// emits calls to them for `Vec2`/`Vec3`/`Vec4`/`Quat` fields.
@@ -240,18 +206,6 @@ fn collect_sections(builtin: bool) -> Sections {
     for (name, _) in &comps {
         return_fields.push_str(&format!("    {name} = {name},\n"));
     }
-    let mut fns: Vec<(String, String, String)> = iter::<ScriptFunction>()
-        .filter(|f| f.builtin == builtin)
-        .map(|f| (f.name.to_string(), f.doc.to_string(), f.stub.to_string()))
-        .collect();
-    fns.sort_by(|a, b| a.0.cmp(&b.0));
-    for (_, doc, stub) in fns {
-        if !doc.is_empty() {
-            return_fields.push_str(&doc);
-            return_fields.push('\n');
-        }
-        return_fields.push_str(&format!("    {stub},\n"));
-    }
 
     Sections {
         types,
@@ -343,7 +297,7 @@ pub fn write_runa_base(path: &std::path::Path) {
 ///
 /// The emitted file is the engine's committed base (`scripts/runa_base.luau`)
 /// plus everything your binary registers as scriptable via
-/// `#[derive(Scriptable)]` / `#[script_fn]` / aux type registrations.
+/// `#[derive(Scriptable)]` / aux type registrations.
 pub fn write_luau_types(path: &std::path::Path) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);

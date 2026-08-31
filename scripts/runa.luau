@@ -382,6 +382,3 @@ return {
     rad = function(x: number): number return 0 end,
     deg = function(x: number): number return 0 end,
 }
-
--- #[script_fn] free Rust functions (registered at runtime as `runa.<name>` / `<name>`):
-add_scores = function(...): any end

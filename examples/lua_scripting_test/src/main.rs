@@ -4,22 +4,9 @@ use runa_engine::core::components::*;
 use runa_engine::core::Vec3;
 use runa_engine::ecs::World;
 use runa_engine::macros::Scriptable;
-use runa_engine::script_fn;
 use runa_engine::scripting::load_script;
 
 fn main() {
-    // (debug) regenerate `.runa/runa.luau` from THIS binary so `luau-lsp` sees the
-    // `#[script_fn]` functions defined in this crate (e.g. `add_scores`). `inventory`
-    // only enumerates fns linked into the running binary, so we must generate from
-    // here, not from `runa_app` (which doesn't link this example crate). The file is
-    // a merge of the engine's committed `runa_base.luau` + this crate's types.
-    #[cfg(debug_assertions)]
-    {
-        let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-        let p = std::path::Path::new(&manifest).join(".runa/runa.luau");
-        runa_engine::scripting::write_luau_types(&p);
-    }
-
     let mut world = World::new();
 
     world.spawn((Camera::new_orthographic(32.0, 18.0),));
@@ -60,13 +47,6 @@ struct Speed {
     value: f32,
 }
 
-// A free Rust function exposed to Luau via `#[script_fn]`. Scripts can call it as
-// `runa.add_scores(a, b)` or just `add_scores(a, b)`.
-#[script_fn]
-fn add_scores(a: f32, b: f32) -> f32 {
-    a + b
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,61 +54,6 @@ mod tests {
     use runa_engine::core::resources::input::InputState;
     use runa_engine::core::resources::Time;
     use runa_engine::scripting::{script_system, ScriptComponent};
-
-    #[test]
-    fn lua_calls_rust_function() {
-        let dir = std::env::temp_dir();
-        let mut p1 = dir.clone();
-        p1.push("lua_rust_fn1.luau");
-        std::fs::write(
-            &p1,
-            r#"
-                local runa = require("runa")
-                function start(ctx: runa.ScriptContext)
-                    ctx:AddComponent(Speed, { value = runa.add_scores(2, 3) })
-                end
-                function update(ctx: runa.ScriptContext) end
-                return { start = start, update = update }
-            "#,
-        )
-        .unwrap();
-
-        let mut p2 = dir.clone();
-        p2.push("lua_rust_fn2.luau");
-        std::fs::write(
-            &p2,
-            r#"
-                function start(ctx: runa.ScriptContext)
-                    ctx:AddComponent(Speed, { value = add_scores(10, 20) })
-                end
-                function update(ctx: runa.ScriptContext) end
-                return { start = start, update = update }
-            "#,
-        )
-        .unwrap();
-
-        let mut world = World::new();
-        world.init_resource::<Time>();
-        world.init_resource::<InputState>();
-        world.init_resource::<EventBus>();
-        let e1 = world.spawn((
-            Transform::default(),
-            ScriptComponent::new(p1.to_str().unwrap()),
-        ));
-        let e2 = world.spawn((
-            Transform::default(),
-            ScriptComponent::new(p2.to_str().unwrap()),
-        ));
-
-        script_system(&mut world);
-        let s1 = world.get::<Speed>(e1).expect("module-path Speed");
-        assert!((s1.value - 5.0).abs() < 1e-9);
-        let s2 = world.get::<Speed>(e2).expect("global-path Speed");
-        assert!((s2.value - 30.0).abs() < 1e-9);
-
-        let _ = std::fs::remove_file(&p1);
-        let _ = std::fs::remove_file(&p2);
-    }
 
     #[test]
     fn lua_add_external_component() {
@@ -166,8 +91,8 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // Regenerates `.runa/runa.luau` for this example (mirrors what `main` does in
-    // debug) and asserts that `#[script_fn]` fns from THIS crate are enumerated.
+    // Regenerates `.runa/runa.luau` for this example and asserts that the engine's
+    // built-in types come through from the committed `runa_base.luau`.
     #[test]
     fn generate_example_runa_luau() {
         let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
@@ -175,10 +100,6 @@ mod tests {
         runa_engine::scripting::write_luau_types(&p);
 
         let content = std::fs::read_to_string(&p).expect("read generated runa.luau");
-        assert!(
-            content.contains("add_scores = function"),
-            "add_scores should appear in generated runa.luau (got:\n{content})"
-        );
         assert!(
             content.contains("export type Transform"),
             "engine built-ins should come from runa_base.luau (got:\n{content})"
