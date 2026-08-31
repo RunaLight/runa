@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "command_queue_test"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
@@ -399,7 +399,7 @@ dependencies = [
 
 [[package]]
 name = "console_test"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
@@ -1372,7 +1372,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lua_scripting_test"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
@@ -2356,7 +2356,7 @@ checksum = "7204ed6420f698836b76d4d5c2ec5dec7585fd5c3a788fd1cde855d1de598239"
 
 [[package]]
 name = "runa_app"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_asset",
  "runa_core",
@@ -2369,7 +2369,7 @@ dependencies = [
 
 [[package]]
 name = "runa_asset"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "gltf",
  "image 0.24.9",
@@ -2384,7 +2384,7 @@ dependencies = [
 
 [[package]]
 name = "runa_core"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "bytemuck",
  "glam",
@@ -2403,14 +2403,14 @@ dependencies = [
 
 [[package]]
 name = "runa_ecs"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "inventory",
 ]
 
 [[package]]
 name = "runa_engine"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "glam",
  "inventory",
@@ -2427,7 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "runa_macros"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2436,7 +2436,7 @@ dependencies = [
 
 [[package]]
 name = "runa_render"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "bytemuck",
  "glam",
@@ -2450,7 +2450,7 @@ dependencies = [
 
 [[package]]
 name = "runa_render_api"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "bytemuck",
  "glam",
@@ -2460,7 +2460,7 @@ dependencies = [
 
 [[package]]
 name = "runa_script_api"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "glam",
  "inventory",
@@ -2536,28 +2536,28 @@ dependencies = [
 
 [[package]]
 name = "sandbox"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
 
 [[package]]
 name = "sandbox_3d"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
 
 [[package]]
 name = "sandbox_soundtest"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]
 
 [[package]]
 name = "sandbox_ui"
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 dependencies = [
  "runa_engine",
 ]

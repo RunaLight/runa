@@ -23,7 +23,7 @@ exclude = ["templates"]
 resolver = "2"
 
 [workspace.package]
-version = "0.8.0-pre.3"
+version = "0.8.0-pre.4"
 authors = ["Nik Neza <nik.n.neza@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
