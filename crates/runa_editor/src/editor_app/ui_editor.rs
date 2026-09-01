@@ -232,7 +232,7 @@ impl UiEditorPanel {
                     node_id,
                     UiNodeKindAsset::Text(TextPropsAsset {
                         text: "Text".to_string(),
-                        font_size: 16,
+                        font_size: 16.0,
                         color: [1.0, 1.0, 1.0, 1.0],
                         line_height: None,
                         align: TextAlignAsset::Left,
@@ -531,17 +531,18 @@ impl UiEditorPanel {
                     }
                 }
                 // Font size
-                let mut font_size = props.font_size as i32;
+                let mut font_size = props.font_size;
                 if ui
                     .horizontal(|ui| {
                         ui.label("Font Size:");
-                        ui.add(egui::Slider::new(&mut font_size, 8..=128)).changed()
+                        ui.add(egui::Slider::new(&mut font_size, 1.0..=256.0))
+                            .changed()
                     })
                     .inner
                 {
                     if let Some(n) = self.get_node_mut(node_id) {
                         if let UiNodeKindAsset::Text(ref mut p) = n.kind {
-                            p.font_size = font_size as u16;
+                            p.font_size = font_size;
                             self.dirty = true;
                         }
                     }

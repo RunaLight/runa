@@ -200,7 +200,7 @@ impl UiRenderer {
             text,
             segments,
             font: None,
-            font_size: 16,
+            font_size: 16.0,
             color: [1.0, 1.0, 1.0, 1.0],
             line_height: None,
             align: crate::ui::TextAlign::Left,
@@ -215,7 +215,7 @@ impl UiRenderer {
             text: content.to_string(),
             segments,
             font: None,
-            font_size: 16,
+            font_size: 16.0,
             color: [1.0, 1.0, 1.0, 1.0],
             line_height: None,
             align: crate::ui::TextAlign::Left,
@@ -255,7 +255,7 @@ impl UiRenderer {
                     text: text.into(),
                     segments: vec![],
                     font: None,
-                    font_size: 16,
+                    font_size: 16.0,
                     color: [1.0, 1.0, 1.0, 1.0],
                     line_height: None,
                     align: crate::ui::TextAlign::Center,
@@ -366,9 +366,13 @@ impl UiRenderer {
             CanvasSpace::Screen => (viewport_size, Vec2::new(1.0, 1.0)),
             CanvasSpace::Camera => {
                 if let Some(cam) = camera {
-                    let vs = cam.orthographic_size;
-                    let s = Vec2::new(viewport_size.x / vs.x, viewport_size.y / vs.y);
-                    (vs, s)
+                    let vs_height = cam.orthographic_size.y;
+                    // virtual width = height * aspect
+                    let vs_x = vs_height * (viewport_size.x / viewport_size.y);
+                    let virtual_size = Vec2::new(vs_x, vs_height);
+
+                    let s = viewport_size.y / vs_height;
+                    (virtual_size, Vec2::splat(s))
                 } else {
                     (viewport_size, Vec2::new(1.0, 1.0))
                 }
@@ -386,12 +390,12 @@ impl UiRenderer {
         let font_scale: f32 = match self.space {
             CanvasSpace::Screen => 1.0,
             CanvasSpace::Camera => 1.0 / scale.y,
-            CanvasSpace::World => camera
-                .map(|cam| {
-                    let visible = cam.ortho_visible_size();
-                    visible.y / cam.viewport_size.1 as f32
-                })
-                .unwrap_or(1.0),
+            // World-space UI lays out in world units: `font_size` is a height in
+            // the orthographic space and `world_rect_to_screen` scales it to pixels
+            // by the camera zoom. Using 1.0 keeps the layout rect in world units so
+            // the text grows/shrinks with the camera (same as sprites) instead of
+            // staying a constant pixel size.
+            CanvasSpace::World => 1.0,
         };
 
         // Step 1: collect parent-child relationships and compute sizes (immutable read)
@@ -433,8 +437,8 @@ impl UiRenderer {
                     }
                 }
                 UiNodeKind::Text(props) => {
-                    h = props.font_size as f32 * font_scale;
-                    let char_est = props.font_size as f32 * font_scale * 0.5;
+                    h = props.font_size * font_scale;
+                    let char_est = props.font_size * font_scale * 0.5;
                     w = (props.text.len() as f32) * char_est;
                 }
                 UiNodeKind::Slider(_) => {
@@ -466,7 +470,7 @@ impl UiRenderer {
                     text: String::new(),
                     segments: vec![],
                     font: None,
-                    font_size: 0,
+                    font_size: 0.0,
                     color: [0.0; 4],
                     line_height: None,
                     align: crate::ui::TextAlign::Left,
@@ -583,11 +587,11 @@ impl UiRenderer {
                                             UiNodeKind::Text(props) => {
                                                 let raw = if is_horizontal {
                                                     (props.text.len() as f32)
-                                                        * props.font_size as f32
+                                                        * props.font_size
                                                         * 0.5
                                                         * font_scale
                                                 } else {
-                                                    props.font_size as f32 * font_scale
+                                                    props.font_size * font_scale
                                                 };
                                                 raw.max(if is_horizontal {
                                                     child.layout.min_size.x
@@ -911,6 +915,7 @@ impl UiRenderer {
         render_queue: &mut RenderQueue,
         camera: Option<&Camera>,
         transform: Option<&Transform>,
+        order: i32,
     ) {
         let screen_of = |rect: crate::ui::UiRect| -> RenderUiRect {
             match self.space {
@@ -925,6 +930,23 @@ impl UiRenderer {
             }
         };
 
+        // In World space, text is rendered `by world` (like sprites): its on-screen
+        // size follows the camera zoom. The glyph rasterizer is driven by `font_size`
+        // (pixels) and ignores `rect.h`, so we multiply it by the camera's zoom factor
+        // (viewport height / visible height) so distant text shrinks and close text
+        // grows. For Screen/Camera the zoom is identity / handled by scaless, so the
+        // raw pixel `font_size` is kept.
+        let world_font_zoom = if matches!(self.space, CanvasSpace::World) {
+            camera
+                .map(|cam| {
+                    let visible = cam.ortho_visible_size();
+                    cam.viewport_size.1 as f32 / visible.y
+                })
+                .unwrap_or(1.0)
+        } else {
+            1.0
+        };
+
         for node in &self.nodes {
             if !node.visible {
                 continue;
@@ -932,7 +954,13 @@ impl UiRenderer {
 
             if let Some(background) = node.style.background {
                 let rect = screen_of(node.computed.rect);
-                render_queue.draw_ui_rect(rect, background, node.style.z_index);
+                render_queue.draw_ui_rect(
+                    rect,
+                    background,
+                    node.style.z_index,
+                    order,
+                    matches!(self.space, CanvasSpace::World),
+                );
             }
             match &node.kind {
                 UiNodeKind::Container(_) => {}
@@ -945,11 +973,14 @@ impl UiRenderer {
                             props.tint,
                             props.uv,
                             node.style.z_index,
+                            order,
+                            matches!(self.space, CanvasSpace::World),
                         );
                     }
                 }
                 UiNodeKind::Text(props) => {
                     let rect = screen_of(node.computed.rect);
+                    let font_size = props.font_size * world_font_zoom;
                     let segments: Vec<RichTextSegment> = props
                         .segments
                         .iter()
@@ -963,8 +994,10 @@ impl UiRenderer {
                         props.text.clone(),
                         rect,
                         props.color,
-                        props.font_size,
+                        font_size,
                         node.style.z_index,
+                        order,
+                        matches!(self.space, CanvasSpace::World),
                         props.font,
                         segments,
                     );
@@ -987,6 +1020,8 @@ impl UiRenderer {
                         },
                         track_color,
                         node.style.z_index,
+                        order,
+                        matches!(self.space, CanvasSpace::World),
                     );
                     let t = ((props.value - props.min) / (props.max - props.min)).clamp(0.0, 1.0);
                     let thumb_x = rect.x - rect.w * 0.5 + t * rect.w;
@@ -999,6 +1034,8 @@ impl UiRenderer {
                         },
                         [0.8, 0.8, 1.0, 1.0],
                         node.style.z_index,
+                        order,
+                        matches!(self.space, CanvasSpace::World),
                     );
                 }
             }

@@ -21,13 +21,13 @@ fn ui_builder(ui: &mut UiRenderer) -> Option<TextHandle> {
 
         ui.vbox(|ui| {
             ui.add_text("Runa Engine UI Demo")
-                .with_font_size(28)
+                .with_font_size(28.0)
                 .with_text_color(0.0, 0.8, 1.0, 1.0);
 
             // Text whose color is animated at runtime via a typed handle.
             pulse_handle = Some(
                 ui.add_text("RGB Pulse")
-                    .with_font_size(22)
+                    .with_font_size(22.0)
                     .with_text_color(1.0, 1.0, 1.0, 1.0)
                     .into_text(),
             );
@@ -35,7 +35,7 @@ fn ui_builder(ui: &mut UiRenderer) -> Option<TextHandle> {
             let s: String = "RichText".into();
 
             ui.add_text(format!("This is a <b>{s}</b> example."))
-                .with_font_size(16)
+                .with_font_size(16.0)
                 .with_text_color(0.8, 0.8, 0.8, 1.0);
 
             ui.add_button(
@@ -63,11 +63,11 @@ fn ui_builder(ui: &mut UiRenderer) -> Option<TextHandle> {
     } else {
         ui.vbox(|ui| {
             ui.add_text("World-Space UI")
-                .with_font_size(24)
+                .with_font_size(24.0)
                 .with_text_color(1.0, 0.8, 0.0, 1.0);
 
             ui.add_text("Attached to entity Transform at (170, 0).\nLocal offset (0, 0) — panel follows entity.")
-                .with_font_size(13)
+                .with_font_size(13.0)
                 .with_text_color(0.9, 0.9, 0.9, 1.0);
 
             ui.add_button(Some("World Button"), Some(Box::new(|| {

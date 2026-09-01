@@ -124,14 +124,24 @@ impl RenderQueue {
     }
 
     // UI
-    pub fn draw_ui_rect(&mut self, rect: UiRect, color: [f32; 4], z_index: i16) {
+    pub fn draw_ui_rect(
+        &mut self,
+        rect: UiRect,
+        color: [f32; 4],
+        z_index: i16,
+        order: i32,
+        world: bool,
+    ) {
         self.commands.push(RenderCommands::UiRect {
             rect,
             color,
             z_index,
+            order,
+            world,
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_ui_image(
         &mut self,
         texture: Arc<TextureAsset>,
@@ -139,6 +149,8 @@ impl RenderQueue {
         tint: [f32; 4],
         uv_rect: [f32; 4],
         z_index: i16,
+        order: i32,
+        world: bool,
     ) {
         self.commands.push(RenderCommands::UiImage {
             texture,
@@ -146,6 +158,8 @@ impl RenderQueue {
             tint,
             uv_rect,
             z_index,
+            order,
+            world,
         });
     }
 
@@ -155,8 +169,10 @@ impl RenderQueue {
         text: String,
         rect: UiRect,
         color: [f32; 4],
-        font_size: u16,
+        font_size: f32,
         z_index: i16,
+        order: i32,
+        world: bool,
         font_id: Option<FontId>,
         segments: Vec<RichTextSegment>,
     ) {
@@ -166,6 +182,8 @@ impl RenderQueue {
             color,
             font_size,
             z_index,
+            order,
+            world,
             font_id,
             segments,
         });

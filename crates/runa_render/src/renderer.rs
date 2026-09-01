@@ -1,4 +1,8 @@
-use std::{collections::HashMap, num::NonZero, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    num::NonZero,
+    sync::Arc,
+};
 
 use crate::{
     font::FontManager, pipelines::BackgroundPipeline, pipelines::BackgroundUniforms,
@@ -56,6 +60,15 @@ impl RenderTarget {
     pub fn sample_view(&self) -> &TextureView {
         &self.sample_color_view
     }
+}
+
+/// Per-`order` bucket of World-space UI geometry, drawn interleaved with sprites so
+/// that world UI respects `Sorting.order`.
+#[derive(Default)]
+struct UiLayerData {
+    solid: Vec<UIVertex>,
+    font: HashMap<usize, Vec<UITexturedVertex>>,
+    image: HashMap<usize, Vec<UITexturedVertex>>,
 }
 
 /// Main renderer struct managing GPU resources and rendering.
@@ -721,6 +734,9 @@ impl<'window> Renderer<'window> {
             std::collections::HashMap::new();
         let mut ui_image_vertices_map: std::collections::HashMap<usize, Vec<UITexturedVertex>> =
             std::collections::HashMap::new();
+        // World-space UI is bucketed by `Sorting.order` so it interleaves with sprites;
+        // Screen/Camera UI accumulates in the maps above and is drawn last (on top).
+        let mut ordered_ui: BTreeMap<i32, UiLayerData> = BTreeMap::new();
         let has_lighting = !queue.directional_lights.is_empty() || !queue.point_lights.is_empty();
         let directional = queue.directional_lights.first().copied();
         let mut point_lights = [PointLightUniform::default(); MAX_POINT_LIGHTS];
@@ -953,13 +969,20 @@ impl<'window> Renderer<'window> {
                     rect,
                     color,
                     z_index: _,
+                    order,
+                    world,
                 } => {
                     let left = rect.x - rect.w / 2.0;
                     let top = rect.y - rect.h / 2.0;
                     let right = left + rect.w;
                     let bottom = top + rect.h;
 
-                    self.ui_vertices.extend_from_slice(&[
+                    let target = if *world {
+                        &mut ordered_ui.entry(*order).or_default().solid
+                    } else {
+                        &mut self.ui_vertices
+                    };
+                    target.extend_from_slice(&[
                         UIVertex {
                             position: [left, top],
                             color: *color,
@@ -992,6 +1015,8 @@ impl<'window> Renderer<'window> {
                     tint,
                     uv_rect,
                     z_index: _,
+                    order,
+                    world,
                 } => {
                     let key = Arc::as_ptr(texture) as usize;
                     self.textures_cache
@@ -1016,7 +1041,16 @@ impl<'window> Renderer<'window> {
 
                     // Add textured vertices for this image using normalized UVs
                     // For regular textures (not font atlas) flip V coordinate because texture assets are top-left origin
-                    let entry = ui_image_vertices_map.entry(key).or_default();
+                    let entry = if *world {
+                        ordered_ui
+                            .entry(*order)
+                            .or_default()
+                            .image
+                            .entry(key)
+                            .or_default()
+                    } else {
+                        ui_image_vertices_map.entry(key).or_default()
+                    };
                     let u0 = uv_n[0];
                     let v0 = uv_n[1];
                     let uw = uv_n[2];
@@ -1064,17 +1098,25 @@ impl<'window> Renderer<'window> {
                     color,
                     font_size,
                     z_index: _,
+                    order,
+                    world,
                     font_id,
                     segments,
                 } => {
                     let fid = font_id.unwrap_or(FontId::DEFAULT);
-                    let scale = *font_size as f32 / self.font_manager.base_font_size_for(fid);
+                    let scale = *font_size / self.font_manager.base_font_size_for(fid);
                     let (char_width, _) = self.font_manager.char_size_for(fid);
                     let char_h = self.font_manager.line_height_for(fid) * scale;
                     let y = if rect.h > char_h {
                         rect.y + (rect.h - char_h) * 0.5
                     } else {
                         rect.y
+                    };
+
+                    let dst_font: &mut HashMap<usize, Vec<UITexturedVertex>> = if *world {
+                        &mut ordered_ui.entry(*order).or_default().font
+                    } else {
+                        &mut ui_font_vertices_map
                     };
 
                     let emit_glyph = |x: &mut f32,
@@ -1155,7 +1197,7 @@ impl<'window> Renderer<'window> {
                     if segments.is_empty() {
                         let mut x = rect.x - rect.w * 0.5;
                         for ch in text.chars() {
-                            emit_glyph(&mut x, ch, color, false, &mut ui_font_vertices_map);
+                            emit_glyph(&mut x, ch, color, false, dst_font);
                         }
                     } else {
                         // compute total width for centering
@@ -1173,13 +1215,7 @@ impl<'window> Renderer<'window> {
                         let mut x = rect.x - total_w * 0.5;
                         for seg in segments {
                             for ch in seg.text.chars() {
-                                emit_glyph(
-                                    &mut x,
-                                    ch,
-                                    &seg.color,
-                                    seg.bold,
-                                    &mut ui_font_vertices_map,
-                                );
+                                emit_glyph(&mut x, ch, &seg.color, seg.bold, dst_font);
                             }
                         }
                     }
@@ -1259,10 +1295,11 @@ impl<'window> Renderer<'window> {
                 .then_with(|| a.2.cmp(&b.2))
         });
 
-        let orders = &mut self.orders;
+        let mut orders = std::mem::take(&mut self.orders);
         orders.clear();
         orders.extend(self.mesh_items.iter().map(|(order, _, _)| *order));
         orders.extend(self.batches.iter().map(|(order, _, _, _, _, _)| *order));
+        orders.extend(ordered_ui.keys().copied());
         orders.sort_unstable();
         orders.dedup();
 
@@ -1427,6 +1464,35 @@ impl<'window> Renderer<'window> {
                     *instance_offset as u32..(*instance_offset + *instance_count) as u32,
                 );
             }
+
+            // World-space UI for this `order`, interleaved with sprites.
+            if let Some(mut layer) = ordered_ui.remove(order) {
+                if !layer.solid.is_empty() {
+                    let ui_vertex_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+                        label: Some("World UI Vertex Buffer"),
+                        size: (size_of::<UIVertex>() * layer.solid.len()) as u64,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
+                    });
+                    self.queue.write_buffer(
+                        &ui_vertex_buffer,
+                        0,
+                        bytemuck::cast_slice(&layer.solid),
+                    );
+                    rpass.set_pipeline(&self.ui_pipeline.pipeline);
+                    rpass.set_bind_group(0, self.ui_bind_group.as_ref().unwrap(), &[]);
+                    rpass.set_vertex_buffer(0, ui_vertex_buffer.slice(..));
+                    rpass.draw(0..layer.solid.len() as u32, 0..1);
+                }
+                if !layer.font.is_empty() {
+                    let sampler = self.nearest_sampler.clone();
+                    self.render_textured_ui_batch(&mut rpass, &mut layer.font, &sampler);
+                }
+                if !layer.image.is_empty() {
+                    let sampler = self.nearest_sampler.clone();
+                    self.render_textured_ui_batch(&mut rpass, &mut layer.image, &sampler);
+                }
+            }
         }
 
         if !self.ui_vertices.is_empty() {
@@ -1459,6 +1525,8 @@ impl<'window> Renderer<'window> {
             let sampler = self.nearest_sampler.clone();
             self.render_textured_ui_batch(&mut rpass, &mut ui_image_vertices_map, &sampler);
         }
+
+        self.orders = orders;
     }
 
     fn render_textured_ui_batch(

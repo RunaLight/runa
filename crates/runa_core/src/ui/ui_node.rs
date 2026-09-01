@@ -203,7 +203,7 @@ pub struct TextProps {
     pub text: String,
     pub segments: Vec<RichTextSegment>,
     pub font: Option<FontId>,
-    pub font_size: u16,
+    pub font_size: f32,
     pub color: [f32; 4],
     pub line_height: Option<f32>,
     pub align: TextAlign,

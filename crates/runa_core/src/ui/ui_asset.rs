@@ -92,7 +92,7 @@ pub struct TextPropsAsset {
     #[serde(default)]
     pub text: String,
     #[serde(default = "default_font_size")]
-    pub font_size: u16,
+    pub font_size: f32,
     #[serde(default)]
     pub color: [f32; 4],
     #[serde(default)]
@@ -101,8 +101,8 @@ pub struct TextPropsAsset {
     pub align: TextAlignAsset,
 }
 
-fn default_font_size() -> u16 {
-    16
+fn default_font_size() -> f32 {
+    16.0
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]

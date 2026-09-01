@@ -193,8 +193,8 @@ impl<'a> UiNodeBuilder<'a> {
         self
     }
 
-    /// For text nodes: set font size
-    pub fn with_font_size(self, size: u16) -> Self {
+    /// For text nodes: set font size (in pixels, or world units for World-space UI)
+    pub fn with_font_size(self, size: f32) -> Self {
         if let Some(node) = self.renderer.node_mut(self.id) {
             if let UiNodeKind::Text(ref mut props) = node.kind {
                 props.font_size = size;

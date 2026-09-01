@@ -160,7 +160,7 @@ impl TextHandle {
         }
     }
 
-    pub fn set_font_size(&self, ui: &mut UiRenderer, s: u16) {
+    pub fn set_font_size(&self, ui: &mut UiRenderer, s: f32) {
         if let Some(n) = ui.node_mut(self.0) {
             if let UiNodeKind::Text(p) = &mut n.kind {
                 p.font_size = s;

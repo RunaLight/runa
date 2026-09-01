@@ -129,6 +129,13 @@ impl<'window> App<'window> {
         );
         let camera_ref = Some(camera);
 
+        let Self { ref world, .. } = self;
+
+        let sort_orders: HashMap<u64, i32> = world
+            .query::<R<Sorting>>()
+            .map(|(e, s)| (e, s.order))
+            .collect();
+
         let mut input = self.world.delete_resource::<InputState>();
 
         for (_, ui) in self.world.query_mut::<W<UiRenderer>>() {
@@ -140,14 +147,16 @@ impl<'window> App<'window> {
 
         let mut ui_with_transform: Vec<u64> = Vec::new();
         for (entity, (ui, transform)) in self.world.query::<(R<UiRenderer>, R<Transform>)>() {
-            ui.build_render_commands(&mut self.queue, camera_ref, Some(transform));
+            let order = sort_orders.get(&entity).copied().unwrap_or(0);
+            ui.build_render_commands(&mut self.queue, camera_ref, Some(transform), order);
             ui_with_transform.push(entity);
         }
         for (entity, ui) in self.world.query::<R<UiRenderer>>() {
+            let order = sort_orders.get(&entity).copied().unwrap_or(0);
             if ui_with_transform.contains(&entity) {
                 continue;
             }
-            ui.build_render_commands(&mut self.queue, camera_ref, None);
+            ui.build_render_commands(&mut self.queue, camera_ref, None, order);
         }
     }
 
