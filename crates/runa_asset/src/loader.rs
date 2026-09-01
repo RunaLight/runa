@@ -1,10 +1,31 @@
 //! Runa asset loading for images, audio, and more.
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex, OnceLock},
+};
 
 use crate::handle::Handle;
 use crate::texture::TextureAsset;
 
 pub use crate::audio::{AudioAsset, AudioLoadError};
+
+static IMAGE_CACHE: OnceLock<Mutex<HashMap<PathBuf, Arc<TextureAsset>>>> = OnceLock::new();
+
+pub fn load_image(cargo: &str, path: &str) -> Handle<TextureAsset> {
+    let full_path = PathBuf::from(cargo).join(path);
+    let cache = IMAGE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+
+    let mut guard = cache.lock().unwrap();
+    match guard.get(&full_path) {
+        Some(arc) => Handle { inner: arc.clone() },
+        None => {
+            let arc = Arc::new(TextureAsset::load(&full_path).expect("Failed to load image"));
+            guard.insert(full_path, arc.clone());
+            Handle { inner: arc }
+        }
+    }
+}
 
 /// Load image/texture asset at compile time (with caching)
 #[macro_export]
@@ -16,13 +37,6 @@ macro_rules! load_image {
         // Runtime loading
         $crate::loader::load_image(env!("CARGO_MANIFEST_DIR"), $path)
     }};
-}
-
-pub fn load_image(cargo: &str, path: &str) -> Handle<TextureAsset> {
-    let image = TextureAsset::load(&PathBuf::from(cargo).join(path)).expect("Failed to load image");
-    Handle {
-        inner: std::sync::Arc::new(image),
-    }
 }
 
 /// Load audio asset at compile time (with caching)
